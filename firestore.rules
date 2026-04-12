@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user role
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return getUserRole() == 'Admin';
+    }
+    
+    // Helper function to check if user is secretary
+    function isSecretary() {
+      return getUserRole() == 'Secretary';
+    }
+    
+    // Helper function to check if user is admin or secretary
+    function isAdminOrSecretary() {
+      return isAdmin() || isSecretary();
+    }
+    
+    // Users collection - only system can write, authenticated users can read their own
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if false; // Only written by system/auth triggers
+    }
+    
+    // Members collection
+    match /members/{memberId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Minutes collection
+    match /minutes/{minuteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrSecretary();
+      allow update: if isAdminOrSecretary() && resource.data.author == request.auth.email;
+      allow delete: if isAdminOrSecretary();
+    }
+    
+    // Projects collection
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.author == request.auth.email || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Attendance collection
+    match /attendance/{attendanceId} {
+      allow read: if isAdminOrSecretary() || resource.data.email == request.auth.email;
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+    
+    // Apologies collection
+    match /apologies/{apologyId} {
+      allow read: if isAdminOrSecretary() || resource.data.email == request.auth.email;
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdminOrSecretary();
+    }
+    
+    // Acts collection (Company Acts & Articles)
+    match /acts/{actId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}
