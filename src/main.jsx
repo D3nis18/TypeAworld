@@ -1,11 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { initializeFirebase } from './firebase/config'
+import './firebase/config' // Firebase initializes automatically on import
 import App from './App.jsx'
 import './index.css'
-
-// Ensure Firebase is initialized before rendering
-initializeFirebase();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

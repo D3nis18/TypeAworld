@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -13,41 +13,43 @@ const firebaseConfig = {
   appId: "1:534947691002:web:d3dd538cc79873e276cc43"
 };
 
-// Initialize Firebase - ensure only one instance
+// Initialize Firebase with proper singleton pattern
 let app, auth, db, storage;
 
-function initializeFirebase() {
+// Ensure single initialization
+if (getApps().length === 0) {
   try {
-    // Check if already initialized
-    if (getApps().length > 0) {
-      app = getApp();
-      console.log('Firebase app already exists, reusing');
-    } else {
-      app = initializeApp(firebaseConfig);
-      console.log('Firebase initialized successfully');
-    }
-    
-    // Initialize services
+    app = initializeApp(firebaseConfig);
+    console.log('Firebase app initialized');
+  } catch (error) {
+    console.error('Failed to initialize Firebase app:', error);
+    app = null;
+  }
+} else {
+  app = getApp();
+  console.log('Reusing existing Firebase app');
+}
+
+// Initialize services only if app exists
+if (app) {
+  try {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
-    
-    return true;
+    console.log('Firebase services initialized');
   } catch (error) {
-    console.error('Firebase initialization error:', error);
-    app = null;
+    console.error('Failed to initialize Firebase services:', error);
     auth = null;
     db = null;
     storage = null;
-    return false;
   }
+} else {
+  auth = null;
+  db = null;
+  storage = null;
 }
 
-// Initialize immediately
-initializeFirebase();
-
 export { app, auth, db, storage };
-export { initializeFirebase };
 
 // ALLOWED EMAILS - Add your 11 approved emails here
 export const ALLOWED_EMAILS = [
