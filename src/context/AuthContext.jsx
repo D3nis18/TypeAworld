@@ -24,25 +24,32 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    const unsubscribe = onAuthStateChange(async (user) => {
-      setUser(user);
-      
-      if (user) {
-        // Get user role from Firestore
-        const userRole = await getUserRole(user.uid);
-        setRole(userRole);
+    let unsubscribe = () => {};
+    
+    try {
+      unsubscribe = onAuthStateChange(async (user) => {
+        setUser(user);
         
-        // Update user last login
-        await createOrUpdateUser(user.uid, {
-          email: user.email,
-          lastLogin: new Date().toISOString()
-        });
-      } else {
-        setRole(null);
-      }
-      
+        if (user) {
+          // Get user role from Firestore
+          const userRole = await getUserRole(user.uid);
+          setRole(userRole);
+          
+          // Update user last login
+          await createOrUpdateUser(user.uid, {
+            email: user.email,
+            lastLogin: new Date().toISOString()
+          });
+        } else {
+          setRole(null);
+        }
+        
+        setLoading(false);
+      });
+    } catch (error) {
+      console.error('Auth initialization error:', error);
       setLoading(false);
-    });
+    }
 
     return unsubscribe;
   }, []);
