@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -13,25 +13,41 @@ const firebaseConfig = {
   appId: "1:534947691002:web:d3dd538cc79873e276cc43"
 };
 
-// Initialize Firebase with error handling
+// Initialize Firebase - ensure only one instance
 let app, auth, db, storage;
 
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-  console.log('Firebase initialized successfully');
-} catch (error) {
-  console.error('Firebase initialization error:', error);
-  // Create dummy exports to prevent crashes
-  app = null;
-  auth = null;
-  db = null;
-  storage = null;
+function initializeFirebase() {
+  try {
+    // Check if already initialized
+    if (getApps().length > 0) {
+      app = getApp();
+      console.log('Firebase app already exists, reusing');
+    } else {
+      app = initializeApp(firebaseConfig);
+      console.log('Firebase initialized successfully');
+    }
+    
+    // Initialize services
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    
+    return true;
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    app = null;
+    auth = null;
+    db = null;
+    storage = null;
+    return false;
+  }
 }
 
+// Initialize immediately
+initializeFirebase();
+
 export { app, auth, db, storage };
+export { initializeFirebase };
 
 // ALLOWED EMAILS - Add your 11 approved emails here
 export const ALLOWED_EMAILS = [
