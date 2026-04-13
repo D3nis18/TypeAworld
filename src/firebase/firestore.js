@@ -20,6 +20,9 @@ export { query, where, orderBy, onSnapshot };
 // Generic CRUD operations
 export const addDocument = async (collectionName, data) => {
   try {
+    if (!db) {
+      return { success: false, error: 'Firestore not initialized' };
+    }
     const docRef = await addDoc(collection(db, collectionName), {
       ...data,
       createdAt: new Date().toISOString(),
@@ -34,6 +37,9 @@ export const addDocument = async (collectionName, data) => {
 
 export const getDocument = async (collectionName, docId) => {
   try {
+    if (!db) {
+      return { success: false, error: 'Firestore not initialized' };
+    }
     const docRef = doc(db, collectionName, docId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -48,6 +54,9 @@ export const getDocument = async (collectionName, docId) => {
 
 export const getCollection = async (collectionName, conditions = [], orderByField = 'createdAt', orderDirection = 'desc') => {
   try {
+    if (!db) {
+      return { success: false, error: 'Firestore not initialized', data: [] };
+    }
     let q = collection(db, collectionName);
     
     if (conditions.length > 0) {
@@ -69,6 +78,9 @@ export const getCollection = async (collectionName, conditions = [], orderByFiel
 
 export const updateDocument = async (collectionName, docId, data) => {
   try {
+    if (!db) {
+      return { success: false, error: 'Firestore not initialized' };
+    }
     const docRef = doc(db, collectionName, docId);
     await updateDoc(docRef, {
       ...data,
@@ -83,6 +95,9 @@ export const updateDocument = async (collectionName, docId, data) => {
 
 export const deleteDocument = async (collectionName, docId) => {
   try {
+    if (!db) {
+      return { success: false, error: 'Firestore not initialized' };
+    }
     await deleteDoc(doc(db, collectionName, docId));
     return { success: true };
   } catch (error) {
@@ -92,6 +107,10 @@ export const deleteDocument = async (collectionName, docId) => {
 };
 
 export const subscribeToCollection = (collectionName, conditions = [], orderByField = 'createdAt', orderDirection = 'desc', callback) => {
+  if (!db) {
+    console.error('Firestore not initialized');
+    return () => {};
+  }
   let q = collection(db, collectionName);
   
   if (conditions.length > 0) {
@@ -113,6 +132,9 @@ export const subscribeToCollection = (collectionName, conditions = [], orderByFi
 // Specific operations for TypeAworld
 export const createOrUpdateUser = async (uid, userData) => {
   try {
+    if (!db) {
+      return { success: false, error: 'Firestore not initialized' };
+    }
     const userRef = doc(db, 'users', uid);
     const userDoc = await getDoc(userRef);
     

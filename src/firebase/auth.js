@@ -9,6 +9,11 @@ import { auth, db, isEmailAllowed } from './config';
 // Sign in with email and password
 export const signIn = async (email, password) => {
   try {
+    // Check if auth is initialized
+    if (!auth) {
+      return { success: false, error: 'Firebase Auth not initialized. Please try again later.' };
+    }
+    
     // Check if email is in allowlist
     if (!isEmailAllowed(email)) {
       throw new Error('This email is not authorized to access the system.');
@@ -36,6 +41,10 @@ export const signOut = async () => {
 // Get user role from Firestore
 export const getUserRole = async (uid) => {
   try {
+    if (!db) {
+      console.error('Firestore not initialized');
+      return 'Member';
+    }
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (userDoc.exists()) {
       return userDoc.data().role || 'Member';
@@ -49,5 +58,10 @@ export const getUserRole = async (uid) => {
 
 // Auth state listener
 export const onAuthStateChange = (callback) => {
+  if (!auth) {
+    console.error('Firebase Auth not initialized');
+    // Return a dummy unsubscribe function
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 };
