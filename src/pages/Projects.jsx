@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Briefcase, Plus, Download, Trash2, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { getMemberPermissions, canEditContent, canDelete } from '../utils/permissions';
+import { getMemberPermissions, canEditContent, canDeleteProjects } from '../utils/permissions';
 import { jsPDF } from 'jspdf';
 
 const Projects = () => {
@@ -13,7 +13,7 @@ const Projects = () => {
     canEditMinutes: false,
     canEditProjects: false,
     canEditAttendance: false,
-    canDeleteContent: false
+    canDeleteProjects: false
   });
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -85,7 +85,7 @@ const Projects = () => {
   };
 
   const handleDelete = async (id) => {
-    if (canDelete(role, memberPermissions)) {
+    if (canDeleteProjects(role, memberPermissions)) {
       if (window.confirm('Are you sure you want to delete this project?')) {
         await deleteDocument('projects', id);
         loadProjects();
@@ -286,7 +286,7 @@ const Projects = () => {
                         Edit
                       </button>
                     )}
-                    {canDelete(role, memberPermissions) && (
+                    {canDeleteProjects(role, memberPermissions) && (
                       <button
                         onClick={() => handleDelete(project.id)}
                         className="btn-danger text-sm"

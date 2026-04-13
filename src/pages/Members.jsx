@@ -12,6 +12,7 @@ const Members = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [customTagInput, setCustomTagInput] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,7 +23,9 @@ const Members = () => {
       canEditMinutes: false,
       canEditProjects: false,
       canEditAttendance: false,
-      canDeleteContent: false
+      canDeleteMinutes: false,
+      canDeleteProjects: false,
+      canDeleteAttendance: false
     }
   });
 
@@ -32,7 +35,9 @@ const Members = () => {
     { key: 'canEditMinutes', label: 'Can Edit Minutes' },
     { key: 'canEditProjects', label: 'Can Edit Projects' },
     { key: 'canEditAttendance', label: 'Can Edit Attendance' },
-    { key: 'canDeleteContent', label: 'Can Delete Content' }
+    { key: 'canDeleteMinutes', label: 'Can Delete Minutes' },
+    { key: 'canDeleteProjects', label: 'Can Delete Projects' },
+    { key: 'canDeleteAttendance', label: 'Can Delete Attendance' }
   ];
 
   useEffect(() => {
@@ -58,13 +63,14 @@ const Members = () => {
     
     setShowModal(false);
     setEditingMember(null);
-    setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteContent: false } });
+    setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
     loadMembers();
   };
 
   const handleEdit = (member) => {
     setEditingMember(member);
     setFormData(member);
+    setCustomTagInput('');
     setShowModal(true);
   };
 
@@ -82,6 +88,33 @@ const Members = () => {
         ? prev.tags.filter(t => t !== tag)
         : [...prev.tags, tag]
     }));
+  };
+
+  const addCustomTag = () => {
+    if (customTagInput.trim()) {
+      const newTag = customTagInput.trim().startsWith('#') ? customTagInput.trim() : `#${customTagInput.trim()}`;
+      if (!formData.tags.includes(newTag)) {
+        setFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, newTag]
+        }));
+      }
+      setCustomTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(t => t !== tagToRemove)
+    }));
+  };
+
+  const handleTagInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addCustomTag();
+    }
   };
 
   const togglePermission = (permissionKey) => {
@@ -153,12 +186,13 @@ const Members = () => {
               <button
                 onClick={() => {
                   setEditingMember(null);
-                  setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [] });
+                  setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
+                  setCustomTagInput('');
                   setShowModal(true);
                 }}
                 className="btn-primary flex items-center gap-2"
               >
-                <Plus size={18} />
+                <Plus size={20} />
                 Add Member
               </button>
             )}
@@ -370,7 +404,28 @@ const Members = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
-                  <div className="flex flex-wrap gap-2">
+                  
+                  {/* Selected Tags */}
+                  {formData.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {formData.tags.map((tag, idx) => (
+                        <span key={idx} className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm">
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="hover:text-primary-900"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Suggested Tags */}
+                  <p className="text-xs text-gray-500 mb-2">Suggested tags:</p>
+                  <div className="flex flex-wrap gap-2 mb-3">
                     {availableTags.map(tag => (
                       <button
                         key={tag}
@@ -386,6 +441,26 @@ const Members = () => {
                       </button>
                     ))}
                   </div>
+                  
+                  {/* Custom Tag Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customTagInput}
+                      onChange={(e) => setCustomTagInput(e.target.value)}
+                      onKeyDown={handleTagInputKeyDown}
+                      placeholder="Type custom tag and press Enter..."
+                      className="flex-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={addCustomTag}
+                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Press Enter or click Add to add custom tag</p>
                 </div>
 
                 <div>
@@ -411,7 +486,8 @@ const Members = () => {
                     onClick={() => {
                       setShowModal(false);
                       setEditingMember(null);
-                      setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteContent: false } });
+                      setCustomTagInput('');
+                      setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
                     }}
                     className="btn-secondary flex-1"
                   >

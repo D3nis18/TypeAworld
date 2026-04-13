@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Mail, FileText, Briefcase, Trash2, Plus, X, Edit } from 'lucide-react';
+import { Shield, Users, Mail, FileText, Briefcase, Trash2, Plus, X, Edit, Lock, Unlock } from 'lucide-react';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { ALLOWED_EMAILS } from '../firebase/config';
+import { auth } from '../firebase/config';
+import { updatePassword, deleteUser as deleteFirebaseUser } from 'firebase/auth';
 
 const AdminPortal = () => {
   const [activeTab, setActiveTab] = useState('members');
@@ -12,17 +14,47 @@ const AdminPortal = () => {
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberPermissions, setMemberPermissions] = useState({
+    canViewMinutes: false,
+    canDownloadMinutes: false,
+    canPostMinutes: false,
     canEditMinutes: false,
+    canDeleteMinutes: false,
     canEditProjects: false,
+    canDeleteProjects: false,
     canEditAttendance: false,
-    canDeleteContent: false
+    canDeleteAttendance: false,
+    canEditCompanyProfile: false,
+    canDeleteCompanyProfile: false,
+    canPostTreasurerReports: false,
+    canEditTreasurerReports: false,
+    canDeleteTreasurerReports: false,
+    canViewFeedback: false,
+    canDeleteFeedback: false,
+    canManageAccounts: false,
+    canViewSuggestions: false,
+    canDeleteSuggestions: false
   });
 
   const permissionOptions = [
-    { key: 'canEditMinutes', label: 'Can Edit Minutes' },
-    { key: 'canEditProjects', label: 'Can Edit Projects' },
-    { key: 'canEditAttendance', label: 'Can Edit Attendance' },
-    { key: 'canDeleteContent', label: 'Can Delete Content' }
+    { key: 'canViewMinutes', label: 'Can View Minutes', category: 'Minutes' },
+    { key: 'canDownloadMinutes', label: 'Can Download Minutes', category: 'Minutes' },
+    { key: 'canPostMinutes', label: 'Can Post Minutes', category: 'Minutes' },
+    { key: 'canEditMinutes', label: 'Can Edit Minutes', category: 'Minutes' },
+    { key: 'canDeleteMinutes', label: 'Can Delete Minutes', category: 'Minutes' },
+    { key: 'canEditProjects', label: 'Can Edit Projects', category: 'Projects' },
+    { key: 'canDeleteProjects', label: 'Can Delete Projects', category: 'Projects' },
+    { key: 'canEditAttendance', label: 'Can Edit Attendance', category: 'Attendance' },
+    { key: 'canDeleteAttendance', label: 'Can Delete Attendance', category: 'Attendance' },
+    { key: 'canEditCompanyProfile', label: 'Can Edit Company Profile', category: 'Company Profile' },
+    { key: 'canDeleteCompanyProfile', label: 'Can Delete Company Profile', category: 'Company Profile' },
+    { key: 'canPostTreasurerReports', label: 'Can Post Treasurer Reports', category: 'Treasurer Reports' },
+    { key: 'canEditTreasurerReports', label: 'Can Edit Treasurer Reports', category: 'Treasurer Reports' },
+    { key: 'canDeleteTreasurerReports', label: 'Can Delete Treasurer Reports', category: 'Treasurer Reports' },
+    { key: 'canViewFeedback', label: 'Can View Feedback', category: 'Feedback' },
+    { key: 'canDeleteFeedback', label: 'Can Delete Feedback', category: 'Feedback' },
+    { key: 'canManageAccounts', label: 'Can Manage Accounts', category: 'Admin' },
+    { key: 'canViewSuggestions', label: 'Can View Suggestions', category: 'Dev Box' },
+    { key: 'canDeleteSuggestions', label: 'Can Delete Suggestions', category: 'Dev Box' }
   ];
 
   useEffect(() => {
@@ -61,7 +93,9 @@ const AdminPortal = () => {
       canEditMinutes: false,
       canEditProjects: false,
       canEditAttendance: false,
-      canDeleteContent: false
+      canDeleteMinutes: false,
+      canDeleteProjects: false,
+      canDeleteAttendance: false
     });
     setShowPermissionModal(true);
   };
@@ -112,6 +146,38 @@ const AdminPortal = () => {
           await deleteDocument('apologies', apology.id);
         }
       }
+    }
+  };
+
+  const suspendAccount = async (member) => {
+    if (window.confirm(`Are you sure you want to suspend ${member.name}?`)) {
+      await updateDocument('members', member.id, { suspended: true });
+      loadData();
+    }
+  };
+
+  const unsuspendAccount = async (member) => {
+    await updateDocument('members', member.id, { suspended: false });
+    loadData();
+  };
+
+  const resetPassword = async (member) => {
+    const newPassword = prompt(`Enter new password for ${member.name}:`);
+    if (newPassword && newPassword.length >= 6) {
+      // Note: Firebase Admin SDK would be needed to reset other users' passwords
+      // For now, we'll just show a message
+      alert('Password reset requires Firebase Admin SDK. Please reset manually in Firebase Console.');
+    } else if (newPassword) {
+      alert('Password must be at least 6 characters');
+    }
+  };
+
+  const deleteAccount = async (member) => {
+    if (window.confirm(`Are you sure you want to delete ${member.name}'s account? This cannot be undone.`)) {
+      await deleteDocument('members', member.id);
+      // Remove from allowed emails
+      setAllowedEmails(allowedEmails.filter(e => e !== member.email));
+      loadData();
     }
   };
 
@@ -200,8 +266,37 @@ const AdminPortal = () => {
                           })}
                         </div>
                       )}
+                      {member.suspended && (
+                        <span className="mt-2 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
+                          Suspended
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2">
+                      {member.suspended ? (
+                        <button
+                          onClick={() => unsuspendAccount(member)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Unsuspend Account"
+                        >
+                          <Unlock size={18} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => suspendAccount(member)}
+                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          title="Suspend Account"
+                        >
+                          <Lock size={18} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => resetPassword(member)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Reset Password"
+                      >
+                        <Lock size={18} />
+                      </button>
                       <button
                         onClick={() => openPermissionModal(member)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -210,9 +305,9 @@ const AdminPortal = () => {
                         <Edit size={18} />
                       </button>
                       <button
-                        onClick={() => deleteMember(member.id)}
+                        onClick={() => deleteAccount(member)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Member"
+                        title="Delete Account"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -232,18 +327,30 @@ const AdminPortal = () => {
                 Edit Permissions for {selectedMember.name}
               </h3>
               
-              <div className="space-y-3">
-                {permissionOptions.map(option => (
-                  <label key={option.key} className="flex items-center gap-3 cursor-pointer p-3 hover:bg-gray-50 rounded-lg">
-                    <input
-                      type="checkbox"
-                      checked={memberPermissions[option.key] || false}
-                      onChange={() => togglePermission(option.key)}
-                      className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-gray-700">{option.label}</span>
-                  </label>
-                ))}
+              <div className="max-h-[60vh] overflow-y-auto space-y-4">
+                {/* Group permissions by category */}
+                {['Minutes', 'Projects', 'Attendance', 'Company Profile', 'Treasurer Reports', 'Feedback', 'Dev Box', 'Admin'].map(category => {
+                  const categoryPermissions = permissionOptions.filter(p => p.category === category);
+                  if (categoryPermissions.length === 0) return null;
+                  return (
+                    <div key={category} className="border border-gray-200 rounded-lg p-3">
+                      <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">{category}</h4>
+                      <div className="space-y-2">
+                        {categoryPermissions.map(option => (
+                          <label key={option.key} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                            <input
+                              type="checkbox"
+                              checked={memberPermissions[option.key] || false}
+                              onChange={() => togglePermission(option.key)}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-gray-700">{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="flex gap-3 mt-6">

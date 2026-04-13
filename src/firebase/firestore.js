@@ -15,7 +15,7 @@ import {
 import { db } from './config';
 
 // Export Firebase query functions for direct use
-export { query, where, orderBy };
+export { query, where, orderBy, onSnapshot };
 
 // Generic CRUD operations
 export const addDocument = async (collectionName, data) => {
@@ -114,10 +114,21 @@ export const subscribeToCollection = (collectionName, conditions = [], orderByFi
 export const createOrUpdateUser = async (uid, userData) => {
   try {
     const userRef = doc(db, 'users', uid);
-    await setDoc(userRef, {
+    const userDoc = await getDoc(userRef);
+    
+    let dataToSet = {
       ...userData,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    };
+    
+    // Always set admin email as Admin
+    if (userData.email === 'denismwg4@gmail.com') {
+      dataToSet.role = 'Admin';
+    } else if (!userDoc.exists() || !userDoc.data().role) {
+      dataToSet.role = 'Member';
+    }
+    
+    await setDoc(userRef, dataToSet, { merge: true });
     return { success: true };
   } catch (error) {
     console.error('Error creating/updating user:', error);

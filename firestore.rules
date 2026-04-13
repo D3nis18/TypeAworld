@@ -27,10 +27,12 @@ service cloud.firestore {
       return isAdmin() || isSecretary();
     }
     
-    // Users collection - only system can write, authenticated users can read their own
+    // Users collection - users can create/update their own document
     match /users/{userId} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if false; // Only written by system/auth triggers
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false;
     }
     
     // Members collection
@@ -79,6 +81,62 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
+    
+    // Company History collection
+    match /companyHistory/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Company Objects collection
+    match /companyObjects/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Treasurer Reports collection
+    match /treasurerReports/{reportId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canPostTreasurerReports == true);
+      allow update: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canEditTreasurerReports == true);
+      allow delete: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canDeleteTreasurerReports == true);
+    }
+    
+    // Feedback collection
+    match /feedback/{feedbackId} {
+      allow read: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canViewFeedback == true) || resource.data.author == request.auth.email;
+      allow create: if isAuthenticated();
+      allow update: if resource.data.author == request.auth.email;
+      allow delete: if isAdmin() || resource.data.author == request.auth.email;
+    }
+    
+    // Suggestions collection
+    match /suggestions/{suggestionId} {
+      allow read: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canViewSuggestions == true) || resource.data.author == request.auth.email;
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || resource.data.author == request.auth.email;
+      allow delete: if isAdmin();
+    }
+    
+    // Chat collection - participants can read their chats
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.email in resource.data.participants;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && request.auth.email in resource.data.participants;
+      allow delete: if isAdmin();
+    }
+    
+    // Messages collection - participants in the chat can read/write messages
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && request.auth.email in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.participants;
+      allow create: if isAuthenticated() && request.auth.email in get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.participants;
+      allow update: if false;
+      allow delete: if isAdmin() || resource.data.sender == request.auth.email;
     }
   }
 }

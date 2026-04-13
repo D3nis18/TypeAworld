@@ -111,7 +111,7 @@ const Login = () => {
         </div>
 
         <p className="text-center text-gray-500 text-sm mt-6">
-          © 2024 TypeAworld. All rights reserved.
+          © 2026 TypeAworld. All rights reserved.
         </p>
       </div>
     </div>

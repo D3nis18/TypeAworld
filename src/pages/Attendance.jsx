@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Check, X, MessageSquare, Download, Trash2 } from 'lucide-react';
 import { getCollection, addDocument, deleteDocument, query, where } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { getMemberPermissions, canEditContent, canDelete } from '../utils/permissions';
+import { getMemberPermissions, canEditContent, canDeleteAttendance } from '../utils/permissions';
 import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 
@@ -14,7 +14,7 @@ const Attendance = () => {
     canEditMinutes: false,
     canEditProjects: false,
     canEditAttendance: false,
-    canDeleteContent: false
+    canDeleteAttendance: false
   });
   const [apologies, setApologies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,7 @@ const Attendance = () => {
     date: format(new Date(), 'yyyy-MM-dd')
   });
   const [todayAttendance, setTodayAttendance] = useState(null);
+  const [attendanceEnabled, setAttendanceEnabled] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -93,7 +94,7 @@ const Attendance = () => {
   };
 
   const deleteApology = async (id) => {
-    if (canDelete(role, memberPermissions)) {
+    if (canDeleteAttendance(role, memberPermissions)) {
       if (window.confirm('Are you sure you want to delete this apology?')) {
         await deleteDocument('apologies', id);
         loadData();
@@ -102,7 +103,7 @@ const Attendance = () => {
   };
 
   const deleteAttendance = async (id) => {
-    if (canDelete(role, memberPermissions)) {
+    if (canDeleteAttendance(role, memberPermissions)) {
       if (window.confirm('Are you sure you want to delete this attendance record?')) {
         await deleteDocument('attendance', id);
         loadData();
@@ -170,25 +171,48 @@ const Attendance = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Attendance & Apologies</h1>
-          {canDownload && (
-            <button
-              onClick={downloadAttendanceReport}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <Download size={18} />
-              Download Report
-            </button>
-          )}
+          <div className="flex gap-3">
+            {role === 'Admin' && (
+              <label className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+                <input
+                  type="checkbox"
+                  checked={attendanceEnabled}
+                  onChange={(e) => setAttendanceEnabled(e.target.checked)}
+                  className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {attendanceEnabled ? 'Attendance Enabled' : 'Attendance Disabled'}
+                </span>
+              </label>
+            )}
+            {canDownload && (
+              <button
+                onClick={downloadAttendanceReport}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Download size={18} />
+                Download Report
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Mark Attendance Section */}
-        <div className="card mb-8">
+        <div className={`card mb-8 ${!attendanceEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-4">Mark Today's Attendance</h2>
           <p className="text-gray-600 mb-4">
             Date: {format(new Date(), 'EEEE, MMMM do, yyyy')}
           </p>
           
-          {todayAttendance ? (
+          {!attendanceEnabled && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+              <p className="text-yellow-800 text-sm">
+                <strong>Attendance is disabled by Admin.</strong> Members cannot mark attendance at this time.
+              </p>
+            </div>
+          )}
+          
+          {attendanceEnabled && todayAttendance ? (
             <div className={`p-4 rounded-lg ${
               todayAttendance.status === 'Present' 
                 ? 'bg-green-100 text-green-800 border border-green-200' 
@@ -199,7 +223,7 @@ const Attendance = () => {
                 {new Date(todayAttendance.timestamp).toLocaleTimeString()}
               </p>
             </div>
-          ) : (
+          ) : attendanceEnabled ? (
             <div className="flex gap-4">
               <button
                 onClick={() => markAttendance('Present')}
@@ -219,7 +243,7 @@ const Attendance = () => {
                 Absent
               </button>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Apology Form */}
@@ -293,7 +317,7 @@ const Attendance = () => {
                         Submitted: {new Date(apology.timestamp).toLocaleString()}
                       </p>
                     </div>
-                    {canDelete(role, memberPermissions) && (
+                    {canDeleteAttendance(role, memberPermissions) && (
                       <button
                         onClick={() => deleteApology(apology.id)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -352,7 +376,7 @@ const Attendance = () => {
                         <td className="py-3 px-4 text-gray-600">
                           {new Date(record.timestamp).toLocaleTimeString()}
                         </td>
-                        {canDelete(role, memberPermissions) && (
+                        {canDeleteAttendance(role, memberPermissions) && (
                           <td className="py-3 px-4">
                             <button
                               onClick={() => deleteAttendance(record.id)}

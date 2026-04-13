@@ -1,30 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { Download, FileText, BookOpen } from 'lucide-react';
-import { getCollection } from '../firebase/firestore';
+import { Download, FileText, BookOpen, Edit, Save, X } from 'lucide-react';
+import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { canEditContent } from '../utils/permissions';
 import { jsPDF } from 'jspdf';
 
 const CompanyProfile = () => {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const [acts, setActs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [memberPermissions, setMemberPermissions] = useState({
+    canEditCompanyProfile: false
+  });
+  const [editingHistory, setEditingHistory] = useState(false);
+  const [editingObjects, setEditingObjects] = useState(false);
+  const [companyHistory, setCompanyHistory] = useState('');
+  const [companyObjects, setCompanyObjects] = useState([]);
+  const [tempHistory, setTempHistory] = useState('');
+  const [tempObjects, setTempObjects] = useState([]);
   
   const canDownload = role === 'Admin' || role === 'Secretary';
-
-  const companyHistory = `The company was started by Kenyatta University students in their first year, aiming to target upcoming business opportunities inside and outside the campus without limitation. The first idea was supplying products, but the company remains open to all other business ventures that meet its objectives.`;
-
-  const companyObjects = [
-    "To identify and pursue profitable business opportunities within and outside the campus",
-    "To provide quality products and services to our target market",
-    "To foster entrepreneurship and business skills among members",
-    "To maintain financial stability and ensure sustainable growth",
-    "To build strong partnerships with other businesses and organizations",
-    "To create employment opportunities for members and the community"
-  ];
+  const canEdit = role === 'Admin' || canEditContent(role, 'canEditCompanyProfile', memberPermissions);
 
   useEffect(() => {
+    loadCompanyInfo();
     loadActs();
-  }, []);
+    if (role === 'Member' && user) {
+      loadMemberPermissions();
+    }
+  }, [role, user]);
+
+  const loadMemberPermissions = async () => {
+    const { getMemberPermissions } = await import('../utils/permissions');
+    const permissions = await getMemberPermissions(user.email);
+    setMemberPermissions(permissions);
+  };
+
+  const loadCompanyInfo = async () => {
+    const historyResult = await getCollection('companyHistory');
+    if (historyResult.success && historyResult.data.length > 0) {
+      setCompanyHistory(historyResult.data[0].content);
+    } else {
+      setCompanyHistory(`The company was started by Kenyatta University students in their first year, aiming to target upcoming business opportunities inside and outside the campus without limitation. The first idea was supplying products, but the company remains open to all other business ventures that meet its objectives.`);
+    }
+
+    const objectsResult = await getCollection('companyObjects');
+    if (objectsResult.success && objectsResult.data.length > 0) {
+      setCompanyObjects(objectsResult.data[0].items);
+    } else {
+      setCompanyObjects([
+        "To identify and pursue profitable business opportunities within and outside the campus",
+        "To provide quality products and services to our target market",
+        "To foster entrepreneurship and business skills among members",
+        "To maintain financial stability and ensure sustainable growth",
+        "To build strong partnerships with other businesses and organizations",
+        "To create employment opportunities for members and the community"
+      ]);
+    }
+  };
 
   const loadActs = async () => {
     const result = await getCollection('acts');
@@ -67,6 +100,43 @@ const CompanyProfile = () => {
     doc.save(`${act.title.replace(/\s+/g, '-').toLowerCase()}.pdf`);
   };
 
+  const saveHistory = async () => {
+    const historyResult = await getCollection('companyHistory');
+    if (historyResult.success && historyResult.data.length > 0) {
+      await updateDocument('companyHistory', historyResult.data[0].id, { content: tempHistory });
+    } else {
+      await addDocument('companyHistory', { content: tempHistory });
+    }
+    setCompanyHistory(tempHistory);
+    setEditingHistory(false);
+  };
+
+  const saveObjects = async () => {
+    const objectsResult = await getCollection('companyObjects');
+    if (objectsResult.success && objectsResult.data.length > 0) {
+      await updateDocument('companyObjects', objectsResult.data[0].id, { items: tempObjects });
+    } else {
+      await addDocument('companyObjects', { items: tempObjects });
+    }
+    setCompanyObjects(tempObjects);
+    setEditingObjects(false);
+  };
+
+  const addObject = () => {
+    setTempObjects([...tempObjects, '']);
+  };
+
+  const updateObject = (index, value) => {
+    const newObjects = [...tempObjects];
+    newObjects[index] = value;
+    setTempObjects(newObjects);
+  };
+
+  const removeObject = (index) => {
+    const newObjects = tempObjects.filter((_, i) => i !== index);
+    setTempObjects(newObjects);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -79,17 +149,55 @@ const CompanyProfile = () => {
               <BookOpen className="text-primary-600" size={24} />
               <h2 className="text-xl font-bold text-gray-900">Company History</h2>
             </div>
-            {canDownload && (
-              <button
-                onClick={downloadHistory}
-                className="btn-primary flex items-center gap-2"
-              >
-                <Download size={18} />
-                Download
-              </button>
-            )}
+            <div className="flex gap-2">
+              {canEdit && !editingHistory && (
+                <button
+                  onClick={() => { setEditingHistory(true); setTempHistory(companyHistory); }}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  <Edit size={18} />
+                  Edit
+                </button>
+              )}
+              {editingHistory && (
+                <>
+                  <button
+                    onClick={saveHistory}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <Save size={18} />
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setEditingHistory(false); setTempHistory(companyHistory); }}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    <X size={18} />
+                    Cancel
+                  </button>
+                </>
+              )}
+              {canDownload && (
+                <button
+                  onClick={downloadHistory}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  <Download size={18} />
+                  Download
+                </button>
+              )}
+            </div>
           </div>
-          <p className="text-gray-700 leading-relaxed">{companyHistory}</p>
+          {editingHistory ? (
+            <textarea
+              value={tempHistory}
+              onChange={(e) => setTempHistory(e.target.value)}
+              className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={6}
+            />
+          ) : (
+            <p className="text-gray-700 leading-relaxed">{companyHistory}</p>
+          )}
         </div>
 
         {/* Company Objects */}
@@ -99,26 +207,81 @@ const CompanyProfile = () => {
               <FileText className="text-primary-600" size={24} />
               <h2 className="text-xl font-bold text-gray-900">Company Objects</h2>
             </div>
-            {canDownload && (
-              <button
-                onClick={downloadObjects}
-                className="btn-primary flex items-center gap-2"
-              >
-                <Download size={18} />
-                Download
-              </button>
-            )}
+            <div className="flex gap-2">
+              {canEdit && !editingObjects && (
+                <button
+                  onClick={() => { setEditingObjects(true); setTempObjects([...companyObjects]); }}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  <Edit size={18} />
+                  Edit
+                </button>
+              )}
+              {editingObjects && (
+                <>
+                  <button
+                    onClick={saveObjects}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <Save size={18} />
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setEditingObjects(false); setTempObjects([...companyObjects]); }}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    <X size={18} />
+                    Cancel
+                  </button>
+                </>
+              )}
+              {canDownload && (
+                <button
+                  onClick={downloadObjects}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  <Download size={18} />
+                  Download
+                </button>
+              )}
+            </div>
           </div>
-          <ul className="space-y-3">
-            {companyObjects.map((obj, index) => (
-              <li key={index} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-medium">
-                  {index + 1}
-                </span>
-                <span className="text-gray-700">{obj}</span>
-              </li>
-            ))}
-          </ul>
+          {editingObjects ? (
+            <div className="space-y-3">
+              {tempObjects.map((obj, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={obj}
+                    onChange={(e) => updateObject(index, e.target.value)}
+                    className="flex-1 input-field"
+                    placeholder="Enter company object"
+                  />
+                  <button
+                    onClick={() => removeObject(index)}
+                    className="btn-danger"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={addObject}
+                className="btn-secondary w-full"
+              >
+                + Add Object
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {companyObjects.map((obj, index) => (
+                <li key={index} className="text-gray-700 flex items-start gap-2">
+                  <span className="text-primary-600 font-semibold">{index + 1}.</span>
+                  <span>{obj}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Company Acts & Articles */}
