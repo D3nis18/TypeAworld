@@ -1,30 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Download, FileText, BookOpen, Edit, Save, X } from 'lucide-react';
+import { Download, FileText, BookOpen, Edit, Save, X, Plus, Building2, Trash2, Image as ImageIcon } from 'lucide-react';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { canEditContent } from '../utils/permissions';
+import { getMemberPermissions, canManageDepartments } from '../utils/permissions';
 import { jsPDF } from 'jspdf';
 
 const CompanyProfile = () => {
   const { role, user } = useAuth();
   const [acts, setActs] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [memberPermissions, setMemberPermissions] = useState({
-    canEditCompanyProfile: false
+    canEditCompanyProfile: false,
+    canManageDepartments: false
   });
   const [editingHistory, setEditingHistory] = useState(false);
   const [editingObjects, setEditingObjects] = useState(false);
+  const [showDepartmentForm, setShowDepartmentForm] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState(null);
   const [companyHistory, setCompanyHistory] = useState('');
   const [companyObjects, setCompanyObjects] = useState([]);
   const [tempHistory, setTempHistory] = useState('');
   const [tempObjects, setTempObjects] = useState([]);
+  const [departmentForm, setDepartmentForm] = useState({
+    name: '',
+    description: '',
+    head: ''
+  });
   
   const canDownload = role === 'Admin' || role === 'Secretary';
-  const canEdit = role === 'Admin' || canEditContent(role, 'canEditCompanyProfile', memberPermissions);
+  const canEdit = role === 'Admin' || memberPermissions.canEditCompanyProfile;
 
   useEffect(() => {
     loadCompanyInfo();
     loadActs();
+    loadDepartments();
     if (role === 'Member' && user) {
       loadMemberPermissions();
     }
@@ -65,6 +75,54 @@ const CompanyProfile = () => {
       setActs(result.data);
     }
     setLoading(false);
+  };
+
+  const loadDepartments = async () => {
+    const result = await getCollection('departments');
+    if (result.success) {
+      setDepartments(result.data);
+    }
+  };
+
+  const handleDepartmentSubmit = async (e) => {
+    e.preventDefault();
+    const data = {
+      ...departmentForm,
+      author: user.email,
+      authorName: user.email.split('@')[0],
+      createdAt: new Date().toISOString()
+    };
+
+    if (editingDepartment) {
+      await updateDocument('departments', editingDepartment.id, {
+        ...data,
+        updatedAt: new Date().toISOString()
+      });
+      setEditingDepartment(null);
+    } else {
+      await addDocument('departments', data);
+    }
+
+    setDepartmentForm({ name: '', description: '', head: '' });
+    setShowDepartmentForm(false);
+    loadDepartments();
+  };
+
+  const handleEditDepartment = (dept) => {
+    setDepartmentForm({
+      name: dept.name,
+      description: dept.description,
+      head: dept.head
+    });
+    setEditingDepartment(dept);
+    setShowDepartmentForm(true);
+  };
+
+  const handleDeleteDepartment = async (id) => {
+    if (window.confirm('Are you sure you want to delete this department?')) {
+      await deleteDocument('departments', id);
+      loadDepartments();
+    }
   };
 
   const downloadHistory = () => {
@@ -281,6 +339,126 @@ const CompanyProfile = () => {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+
+        {/* Departments */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Building2 className="text-primary-600" size={24} />
+              <h2 className="text-xl font-bold text-gray-900">Departments</h2>
+            </div>
+            {canManageDepartments(role, memberPermissions) && (
+              <button
+                onClick={() => setShowDepartmentForm(true)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Plus size={18} />
+                Add Department
+              </button>
+            )}
+          </div>
+
+          {showDepartmentForm && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-3">
+                {editingDepartment ? 'Edit Department' : 'Add New Department'}
+              </h3>
+              <form onSubmit={handleDepartmentSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Department Name</label>
+                  <input
+                    type="text"
+                    value={departmentForm.name}
+                    onChange={(e) => setDepartmentForm({ ...departmentForm, name: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., Marketing"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Department Head</label>
+                  <input
+                    type="text"
+                    value={departmentForm.head}
+                    onChange={(e) => setDepartmentForm({ ...departmentForm, head: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={departmentForm.description}
+                    onChange={(e) => setDepartmentForm({ ...departmentForm, description: e.target.value })}
+                    className="input-field min-h-[100px]"
+                    placeholder="Brief description of the department"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="btn-primary">
+                    {editingDepartment ? 'Update' : 'Add'} Department
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDepartmentForm(false);
+                      setEditingDepartment(null);
+                      setDepartmentForm({ name: '', description: '', head: '' });
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {departments.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No departments added yet.</p>
+          ) : (
+            <div className="grid gap-4">
+              {departments.map((dept) => (
+                <div key={dept.id} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{dept.name}</h3>
+                      {dept.head && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          <span className="font-medium">Head:</span> {dept.head}
+                        </p>
+                      )}
+                      {dept.description && (
+                        <p className="text-sm text-gray-600 mt-2">{dept.description}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-2">
+                        Added by {dept.authorName} on {new Date(dept.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {canManageDepartments(role, memberPermissions) && (
+                      <div className="flex gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditDepartment(dept)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDepartment(dept.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

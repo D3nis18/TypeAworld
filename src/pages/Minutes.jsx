@@ -585,7 +585,7 @@ const Minutes = () => {
                         Download Full Report
                       </button>
                     )}
-                    {canEditMinutes(role, memberPermissions) && (
+                    {(role === 'Admin' || canEditMinutes(role, memberPermissions)) && (
                       <button
                         onClick={() => handleEdit(minute)}
                         className="btn-secondary flex items-center gap-2"

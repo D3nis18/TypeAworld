@@ -135,3 +135,9 @@ export const canManageCategories = (role, permissions) => {
   if (role === 'Admin') return true;
   return hasPermission(permissions, 'canManageCategories');
 };
+
+// Check if user can manage departments
+export const canManageDepartments = (role, permissions) => {
+  if (role === 'Admin') return true;
+  return hasPermission(permissions, 'canManageDepartments');
+};
