@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -13,41 +13,11 @@ const firebaseConfig = {
   appId: "1:534947691002:web:d3dd538cc79873e276cc43"
 };
 
-// Initialize Firebase with proper singleton pattern
-let app, auth, db, storage;
-
-// Ensure single initialization
-if (getApps().length === 0) {
-  try {
-    app = initializeApp(firebaseConfig);
-    console.log('Firebase app initialized');
-  } catch (error) {
-    console.error('Failed to initialize Firebase app:', error);
-    app = null;
-  }
-} else {
-  app = getApp();
-  console.log('Reusing existing Firebase app');
-}
-
-// Initialize services only if app exists
-if (app) {
-  try {
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-    console.log('Firebase services initialized');
-  } catch (error) {
-    console.error('Failed to initialize Firebase services:', error);
-    auth = null;
-    db = null;
-    storage = null;
-  }
-} else {
-  auth = null;
-  db = null;
-  storage = null;
-}
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
 export { app, auth, db, storage };
 
