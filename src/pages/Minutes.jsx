@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Download, Trash2, Calendar, User, Image, ListTodo, Users, X } from 'lucide-react';
-import { getCollection, addDocument, deleteDocument, query, where } from '../firebase/firestore';
+import { getCollection, addDocument, deleteDocument, query, where, collection, getDocs } from '../firebase/firestore';
+import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { getMemberPermissions, canViewMinutes, canDownloadMinutes, canPostMinutes, canEditMinutes, canDeleteMinutes } from '../utils/permissions';
 import { jsPDF } from 'jspdf';
@@ -118,13 +119,14 @@ const Minutes = () => {
     const endOfDay = new Date(dateObj.setHours(23, 59, 59, 999)).toISOString();
     
     const attendanceQuery = query(
-      'attendance',
+      collection(db, 'attendance'),
       where('timestamp', '>=', startOfDay),
       where('timestamp', '<=', endOfDay)
     );
     
-    const result = await getCollection('attendance', attendanceQuery);
-    return result.success ? result.data : [];
+    const querySnapshot = await getDocs(attendanceQuery);
+    const result = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return result;
   };
 
   const getApologiesForDate = async (date) => {

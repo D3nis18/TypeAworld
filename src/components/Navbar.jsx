@@ -6,7 +6,8 @@ import {
   ClipboardList, BarChart3, MoreHorizontal
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getCollection, query, where, onSnapshot } from '../firebase/firestore';
+import { query, where, onSnapshot, collection } from '../firebase/firestore';
+import { db } from '../firebase/config';
 
 const Navbar = () => {
   const { user, role } = useAuth();
@@ -31,7 +32,7 @@ const Navbar = () => {
 
     // Get user's chats
     const chatsQuery = query(
-      'chats',
+      collection(db, 'chats'),
       where('participants', 'array-contains', user.email)
     );
 
@@ -45,7 +46,7 @@ const Navbar = () => {
 
       chats.forEach(chat => {
         const messagesQuery = query(
-          'messages',
+          collection(db, 'messages'),
           where('chatId', '==', chat.id),
           where('sender', '!=', user.email),
           where('read', '==', false)

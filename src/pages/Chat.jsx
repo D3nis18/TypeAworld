@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Send, Users, User, Shield, Search, MoreVertical, Phone, Video, Paperclip, Smile, X, Eye, EyeOff } from 'lucide-react';
-import { getCollection, addDocument, deleteDocument, query, where, orderBy, onSnapshot } from '../firebase/firestore';
+import { getCollection, addDocument, deleteDocument, query, where, orderBy, onSnapshot, collection } from '../firebase/firestore';
+import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 
@@ -31,7 +32,7 @@ const Chat = () => {
     if (!selectedChat) return;
 
     const messagesQuery = query(
-      'messages',
+      collection(db, 'messages'),
       where('chatId', '==', selectedChat.id),
       orderBy('createdAt', 'asc')
     );
