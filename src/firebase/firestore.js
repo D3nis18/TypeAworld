@@ -15,7 +15,7 @@ import {
 import { db } from './config';
 
 // Export Firebase query functions for direct use
-export { query, where, orderBy, onSnapshot };
+export { query, where, orderBy, onSnapshot, collection, doc, getDocs };
 
 // Generic CRUD operations
 export const addDocument = async (collectionName, data) => {
