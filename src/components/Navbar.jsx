@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, Menu, X, Users, FileText, Briefcase, Calendar, Shield, Building2, 
   Home, DollarSign, User, MessageSquare, Lightbulb, ChevronDown, FolderOpen, 
-  ClipboardList, BarChart3, MoreHorizontal
+  ClipboardList, BarChart3, MoreHorizontal, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { query, where, onSnapshot, collection } from '../firebase/firestore';
@@ -112,6 +112,7 @@ const Navbar = () => {
       items: [
         { path: '/projects', label: 'Projects', icon: Briefcase },
         { path: '/suggestions', label: 'Dev Box', icon: Lightbulb },
+        { path: '/issues', label: 'Issues', icon: AlertTriangle },
       ]
     },
   ];
@@ -349,6 +350,9 @@ const Navbar = () => {
               </Link>
               <Link to="/suggestions" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
                 <Lightbulb size={18} /> Dev Box
+              </Link>
+              <Link to="/issues" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
+                <AlertTriangle size={18} /> Issues
               </Link>
             </div>
 

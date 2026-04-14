@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Download, Trash2, Calendar, User, Image, ListTodo, Users, X } from 'lucide-react';
-import { getCollection, addDocument, deleteDocument, query, where, collection, getDocs } from '../firebase/firestore';
+import { FileText, Plus, Download, Trash2, Calendar, User, Image, ListTodo, Users, X, Clock, MapPin, Edit, Bell } from 'lucide-react';
+import { getCollection, addDocument, deleteDocument, updateDocument, query, where, collection, getDocs } from '../firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { getMemberPermissions, canViewMinutes, canDownloadMinutes, canPostMinutes, canEditMinutes, canDeleteMinutes } from '../utils/permissions';
@@ -18,9 +18,13 @@ const Minutes = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     date: '',
+    time: '',
+    venue: '',
+    reminder: '1 day',
     content: '',
     images: [],
     agendaItems: []
@@ -92,14 +96,21 @@ const Minutes = () => {
     
     const data = {
       ...formData,
-      author: user.email,
-      authorName: user.email.split('@')[0],
-      createdAt: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
     
-    await addDocument('minutes', data);
+    if (editingId) {
+      await updateDocument('minutes', editingId, data);
+      setEditingId(null);
+    } else {
+      data.author = user.email;
+      data.authorName = user.email.split('@')[0];
+      data.createdAt = new Date().toISOString();
+      await addDocument('minutes', data);
+    }
+    
     setShowForm(false);
-    setFormData({ title: '', date: '', content: '', images: [], agendaItems: [] });
+    setFormData({ title: '', date: '', time: '', venue: '', reminder: '1 day', content: '', images: [], agendaItems: [] });
     setAgendaInput('');
     loadMinutes();
   };
@@ -111,6 +122,36 @@ const Minutes = () => {
         loadMinutes();
       }
     }
+  };
+
+  const handleEdit = (minute) => {
+    setFormData({
+      title: minute.title,
+      date: minute.date,
+      time: minute.time || '',
+      venue: minute.venue || '',
+      reminder: minute.reminder || '1 day',
+      content: minute.content,
+      images: minute.images || [],
+      agendaItems: minute.agendaItems || []
+    });
+    setEditingId(minute.id);
+    setShowForm(true);
+  };
+
+  const handleCancelEdit = () => {
+    setFormData({
+      title: '',
+      date: '',
+      time: '',
+      venue: '',
+      reminder: '1 day',
+      content: '',
+      images: [],
+      agendaItems: []
+    });
+    setEditingId(null);
+    setShowForm(false);
   };
 
   const getAttendanceForDate = async (date) => {
@@ -261,7 +302,20 @@ const Minutes = () => {
         {/* Post Minutes Form */}
         {showForm && canPost && (
           <div className="card mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Post New Minutes</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingId ? 'Edit Meeting Details' : 'Post New Minutes'}
+              </h2>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={20} />
+                </button>
+              )}
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
@@ -284,9 +338,51 @@ const Minutes = () => {
                   className="input-field"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Select the date of the meeting. Attendance will be compiled from this date.
-                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Clock size={16} className="inline mr-1" />
+                    Meeting Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <MapPin size={16} className="inline mr-1" />
+                    Venue
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.venue}
+                    onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., Main Boardroom"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Bell size={16} className="inline mr-1" />
+                  Send Reminder
+                </label>
+                <select
+                  value={formData.reminder}
+                  onChange={(e) => setFormData({ ...formData, reminder: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="1 day">1 day before</option>
+                  <option value="2 days">2 days before</option>
+                  <option value="1 week">1 week before</option>
+                  <option value="none">No reminder</option>
+                </select>
               </div>
 
               {/* Agenda Items */}
@@ -375,17 +471,13 @@ const Minutes = () => {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setFormData({ title: '', date: '', content: '', images: [], agendaItems: [] });
-                    setAgendaInput('');
-                  }}
+                  onClick={handleCancelEdit}
                   className="btn-secondary"
                 >
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary">
-                  Post Minutes
+                  {editingId ? 'Update Details' : 'Post Minutes'}
                 </button>
               </div>
             </form>
@@ -418,7 +510,31 @@ const Minutes = () => {
                         {new Date(minute.date).toLocaleDateString()}
                       </span>
                     </div>
-                    
+
+                    {/* Meeting Details */}
+                    {(minute.time || minute.venue || minute.reminder && minute.reminder !== 'none') && (
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3 p-3 bg-gray-50 rounded-lg">
+                        {minute.time && (
+                          <div className="flex items-center gap-1">
+                            <Clock size={14} />
+                            <span>{minute.time}</span>
+                          </div>
+                        )}
+                        {minute.venue && (
+                          <div className="flex items-center gap-1">
+                            <MapPin size={14} />
+                            <span>{minute.venue}</span>
+                          </div>
+                        )}
+                        {minute.reminder && minute.reminder !== 'none' && (
+                          <div className="flex items-center gap-1">
+                            <Bell size={14} />
+                            <span>Reminder: {minute.reminder} before</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                       <div className="flex items-center gap-1">
                         <User size={14} />
@@ -467,6 +583,16 @@ const Minutes = () => {
                       >
                         <Download size={18} />
                         Download Full Report
+                      </button>
+                    )}
+                    {canEditMinutes(role, memberPermissions) && (
+                      <button
+                        onClick={() => handleEdit(minute)}
+                        className="btn-secondary flex items-center gap-2"
+                        title="Edit Meeting Details"
+                      >
+                        <Edit size={18} />
+                        Edit Details
                       </button>
                     )}
                     {canDeleteMinutes(role, memberPermissions) && (

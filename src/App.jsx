@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import Feedback from './pages/Feedback';
 import Suggestions from './pages/Suggestions';
 import Chat from './pages/Chat';
+import Issues from './pages/Issues';
 import AdminPortal from './pages/AdminPortal';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -42,6 +43,7 @@ function App() {
                   <Route path="/feedback" element={<Feedback />} />
                   <Route path="/suggestions" element={<Suggestions />} />
                   <Route path="/chat" element={<Chat />} />
+                  <Route path="/issues" element={<Issues />} />
                   <Route
                     path="/admin"
                     element={
