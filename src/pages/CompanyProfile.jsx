@@ -18,6 +18,8 @@ const CompanyProfile = () => {
   const [editingObjects, setEditingObjects] = useState(false);
   const [showDepartmentForm, setShowDepartmentForm] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [companyHistory, setCompanyHistory] = useState('');
   const [companyObjects, setCompanyObjects] = useState([]);
   const [tempHistory, setTempHistory] = useState('');
@@ -26,6 +28,11 @@ const CompanyProfile = () => {
     name: '',
     description: '',
     head: ''
+  });
+  const [postForm, setPostForm] = useState({
+    title: '',
+    content: '',
+    images: []
   });
   
   const canDownload = role === 'Admin' || role === 'Secretary';
@@ -80,7 +87,19 @@ const CompanyProfile = () => {
   const loadDepartments = async () => {
     const result = await getCollection('departments');
     if (result.success) {
-      setDepartments(result.data);
+      const depts = result.data;
+      // Load posts for each department
+      const departmentsWithPosts = await Promise.all(
+        depts.map(async (dept) => {
+          const postsResult = await getCollection('departmentPosts');
+          if (postsResult.success) {
+            const deptPosts = postsResult.data.filter(post => post.departmentId === dept.id);
+            return { ...dept, posts: deptPosts };
+          }
+          return { ...dept, posts: [] };
+        })
+      );
+      setDepartments(departmentsWithPosts);
     }
   };
 
@@ -123,6 +142,51 @@ const CompanyProfile = () => {
       await deleteDocument('departments', id);
       loadDepartments();
     }
+  };
+
+  const handleAddPost = (dept) => {
+    setSelectedDepartment(dept);
+    setPostForm({ title: '', content: '', images: [] });
+    setShowPostForm(true);
+  };
+
+  const handlePostSubmit = async (e) => {
+    e.preventDefault();
+    const data = {
+      ...postForm,
+      departmentId: selectedDepartment.id,
+      departmentName: selectedDepartment.name,
+      author: user.email,
+      authorName: user.email.split('@')[0],
+      createdAt: new Date().toISOString()
+    };
+
+    await addDocument('departmentPosts', data);
+    setPostForm({ title: '', content: '', images: [] });
+    setShowPostForm(false);
+    setSelectedDepartment(null);
+    loadDepartments();
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPostForm(prev => ({
+          ...prev,
+          images: [...prev.images, reader.result]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePostImage = (index) => {
+    setPostForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
   };
 
   const downloadHistory = () => {
@@ -422,7 +486,7 @@ const CompanyProfile = () => {
             <div className="grid gap-4">
               {departments.map((dept) => (
                 <div key={dept.id} className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{dept.name}</h3>
                       {dept.head && (
@@ -437,30 +501,155 @@ const CompanyProfile = () => {
                         Added by {dept.authorName} on {new Date(dept.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    {canManageDepartments(role, memberPermissions) && (
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={() => handleEditDepartment(dept)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          title="Edit"
-                        >
-                          <Edit size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDepartment(dept.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Delete"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-2 ml-4">
+                      {canManageDepartments(role, memberPermissions) && (
+                        <>
+                          <button
+                            onClick={() => handleEditDepartment(dept)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            title="Edit"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDepartment(dept.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => handleAddPost(dept)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                        title="Add Post"
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Department Posts */}
+                  {dept.posts && dept.posts.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Posts & News</h4>
+                      <div className="space-y-3">
+                        {dept.posts.map((post) => (
+                          <div key={post.id} className="p-3 bg-white rounded-lg border border-gray-200">
+                            <div className="flex items-start justify-between mb-2">
+                              <h5 className="font-semibold text-gray-900">{post.title}</h5>
+                              <span className="text-xs text-gray-400">
+                                {new Date(post.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">{post.content}</p>
+                            {post.images && post.images.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {post.images.map((img, idx) => (
+                                  <img key={idx} src={img} alt={`Post ${idx + 1}`} className="w-20 h-20 object-cover rounded" />
+                                ))}
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-400 mt-2">Posted by {post.authorName}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Post Form Modal */}
+        {showPostForm && selectedDepartment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Add Post to {selectedDepartment.name}
+                </h2>
+                <button onClick={() => {
+                  setShowPostForm(false);
+                  setSelectedDepartment(null);
+                  setPostForm({ title: '', content: '', images: [] });
+                }} className="text-gray-500 hover:text-gray-700">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handlePostSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                  <input
+                    type="text"
+                    value={postForm.title}
+                    onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                    className="input-field"
+                    placeholder="Post title"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
+                  <textarea
+                    value={postForm.content}
+                    onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
+                    className="input-field min-h-[120px]"
+                    placeholder="Post content"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <ImageIcon size={16} className="inline mr-1" />
+                    Attach Images
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                  />
+                  {postForm.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {postForm.images.map((img, idx) => (
+                        <div key={idx} className="relative">
+                          <img src={img} alt={`Upload ${idx + 1}`} className="w-20 h-20 object-cover rounded-lg" />
+                          <button
+                            type="button"
+                            onClick={() => removePostImage(idx)}
+                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button type="submit" className="btn-primary">
+                    Post
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPostForm(false);
+                      setSelectedDepartment(null);
+                      setPostForm({ title: '', content: '', images: [] });
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Company Acts & Articles */}
         <div className="card">

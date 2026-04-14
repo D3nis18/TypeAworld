@@ -25,6 +25,8 @@ const Minutes = () => {
     time: '',
     venue: '',
     reminder: '1 day',
+    repeatReminder: false,
+    repeatDays: [],
     content: '',
     images: [],
     agendaItems: []
@@ -110,7 +112,7 @@ const Minutes = () => {
     }
     
     setShowForm(false);
-    setFormData({ title: '', date: '', time: '', venue: '', reminder: '1 day', content: '', images: [], agendaItems: [] });
+    setFormData({ title: '', date: '', time: '', venue: '', reminder: '1 day', repeatReminder: false, repeatDays: [], content: '', images: [], agendaItems: [] });
     setAgendaInput('');
     loadMinutes();
   };
@@ -131,6 +133,8 @@ const Minutes = () => {
       time: minute.time || '',
       venue: minute.venue || '',
       reminder: minute.reminder || '1 day',
+      repeatReminder: minute.repeatReminder || false,
+      repeatDays: minute.repeatDays || [],
       content: minute.content,
       images: minute.images || [],
       agendaItems: minute.agendaItems || []
@@ -146,6 +150,8 @@ const Minutes = () => {
       time: '',
       venue: '',
       reminder: '1 day',
+      repeatReminder: false,
+      repeatDays: [],
       content: '',
       images: [],
       agendaItems: []
@@ -383,6 +389,42 @@ const Minutes = () => {
                   <option value="1 week">1 week before</option>
                   <option value="none">No reminder</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.repeatReminder}
+                    onChange={(e) => setFormData({ ...formData, repeatReminder: e.target.checked })}
+                    className="w-4 h-4 text-primary-600 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Repeat Reminder</span>
+                </label>
+                {formData.repeatReminder && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Days</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                        <label key={day} className="flex items-center gap-1 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={formData.repeatDays.includes(day)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, repeatDays: [...formData.repeatDays, day] });
+                              } else {
+                                setFormData({ ...formData, repeatDays: formData.repeatDays.filter(d => d !== day) });
+                              }
+                            }}
+                            className="w-4 h-4 text-primary-600 rounded"
+                          />
+                          <span className="text-gray-700">{day.substring(0, 3)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Agenda Items */}
