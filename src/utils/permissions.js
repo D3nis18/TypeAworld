@@ -129,3 +129,9 @@ export const canViewSuggestions = (role, permissions) => {
   if (role === 'Admin') return true;
   return hasPermission(permissions, 'canViewSuggestions');
 };
+
+// Check if user can manage issue categories
+export const canManageCategories = (role, permissions) => {
+  if (role === 'Admin') return true;
+  return hasPermission(permissions, 'canManageCategories');
+};

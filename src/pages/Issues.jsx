@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Send, Trash2, Check, X, Clock, User } from 'lucide-react';
+import { AlertTriangle, Plus, Send, Trash2, Check, X, Clock, User, Settings } from 'lucide-react';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { getMemberPermissions, canManageCategories as checkCanManageCategories } from '../utils/permissions';
 
 const Issues = () => {
   const { role, user } = useAuth();
   const [issues, setIssues] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [memberPermissions, setMemberPermissions] = useState({});
   const [showForm, setShowForm] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -17,7 +22,41 @@ const Issues = () => {
 
   useEffect(() => {
     loadIssues();
+    loadCategories();
+    if (role === 'Member' && user) {
+      loadMemberPermissions();
+    }
   }, []);
+
+  useEffect(() => {
+    if (categories.length > 0 && !formData.category) {
+      setFormData(prev => ({ ...prev, category: categories[0].name }));
+    }
+  }, [categories]);
+
+  const loadMemberPermissions = async () => {
+    const permissions = await getMemberPermissions(user.email);
+    setMemberPermissions(permissions);
+  };
+
+  const canManageCategories = checkCanManageCategories(role, memberPermissions);
+
+  const loadCategories = async () => {
+    const result = await getCollection('issueCategories');
+    if (result.success && result.data.length > 0) {
+      setCategories(result.data);
+    } else {
+      // Default categories if none exist
+      const defaults = [
+        { name: 'General', id: 'general' },
+        { name: 'Facilities', id: 'facilities' },
+        { name: 'Finance', id: 'finance' },
+        { name: 'Operations', id: 'operations' },
+        { name: 'Other', id: 'other' }
+      ];
+      setCategories(defaults);
+    }
+  };
 
   const loadIssues = async () => {
     const result = await getCollection('issues');
@@ -26,6 +65,21 @@ const Issues = () => {
       setIssues(sorted);
     }
     setLoading(false);
+  };
+
+  const handleAddCategory = async () => {
+    if (newCategory.trim()) {
+      await addDocument('issueCategories', { name: newCategory.trim() });
+      setNewCategory('');
+      loadCategories();
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (window.confirm('Are you sure you want to delete this category?')) {
+      await deleteDocument('issueCategories', id);
+      loadCategories();
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -95,13 +149,24 @@ const Issues = () => {
             <h1 className="text-3xl font-bold text-gray-800">Issues</h1>
             <p className="text-gray-600 mt-1">Raise and track community issues</p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus size={18} />
-            Raise Issue
-          </button>
+          <div className="flex gap-2">
+            {canManageCategories && (
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Settings size={18} />
+                Manage Categories
+              </button>
+            )}
+            <button
+              onClick={() => setShowForm(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus size={18} />
+              Raise Issue
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -144,11 +209,9 @@ const Issues = () => {
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="input-field"
                   >
-                    <option value="General">General</option>
-                    <option value="Facilities">Facilities</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Other">Other</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -248,6 +311,58 @@ const Issues = () => {
             ))
           )}
         </div>
+
+        {/* Category Management Modal */}
+        {showCategoryModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Manage Categories</h2>
+                <button onClick={() => setShowCategoryModal(false)} className="text-gray-500 hover:text-gray-700">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Add New Category</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="flex-1 p-2 border border-gray-300 rounded-lg"
+                    placeholder="Enter category name"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                  />
+                  <button
+                    onClick={handleAddCategory}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Current Categories</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {categories.map((cat) => (
+                    <div key={cat.id || cat.name} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <span className="text-gray-700">{cat.name}</span>
+                      <button
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete category"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

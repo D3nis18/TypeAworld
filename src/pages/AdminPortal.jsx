@@ -54,7 +54,8 @@ const AdminPortal = () => {
     { key: 'canDeleteFeedback', label: 'Can Delete Feedback', category: 'Feedback' },
     { key: 'canManageAccounts', label: 'Can Manage Accounts', category: 'Admin' },
     { key: 'canViewSuggestions', label: 'Can View Suggestions', category: 'Dev Box' },
-    { key: 'canDeleteSuggestions', label: 'Can Delete Suggestions', category: 'Dev Box' }
+    { key: 'canDeleteSuggestions', label: 'Can Delete Suggestions', category: 'Dev Box' },
+    { key: 'canManageCategories', label: 'Can Manage Issue Categories', category: 'Issues' }
   ];
 
   useEffect(() => {
