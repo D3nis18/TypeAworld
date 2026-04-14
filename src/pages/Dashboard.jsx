@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, FileText, Briefcase, Calendar, Bell, Building2, Star, Newspaper, ArrowRight } from 'lucide-react';
+import { Users, FileText, Briefcase, Calendar, Bell, Building2, Star, Newspaper, ArrowRight, Edit, Save, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getCollection } from '../firebase/firestore';
+import { getCollection, addDocument, updateDocument } from '../firebase/firestore';
 
 const Dashboard = () => {
   const { user, role } = useAuth();
   const [projects, setProjects] = useState([]);
   const [departmentPosts, setDepartmentPosts] = useState([]);
+  const [meetingReminder, setMeetingReminder] = useState({
+    day: 'Friday',
+    time: '4:00 PM',
+    message: 'Please ensure you mark your attendance and prepare any updates you\'d like to share.',
+    venue: ''
+  });
+  const [editingReminder, setEditingReminder] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadProjects();
     loadDepartmentPosts();
+    loadMeetingReminder();
   }, []);
 
   const loadProjects = async () => {
@@ -31,6 +39,24 @@ const Dashboard = () => {
       setDepartmentPosts(posts);
     }
     setLoading(false);
+  };
+
+  const loadMeetingReminder = async () => {
+    const result = await getCollection('meetingReminder');
+    if (result.success && result.data.length > 0) {
+      setMeetingReminder(result.data[0]);
+    }
+  };
+
+  const saveMeetingReminder = async () => {
+    const result = await getCollection('meetingReminder');
+    if (result.success && result.data.length > 0) {
+      await updateDocument('meetingReminder', result.data[0].id, meetingReminder);
+    } else {
+      await addDocument('meetingReminder', meetingReminder);
+    }
+    setEditingReminder(false);
+    loadMeetingReminder();
   };
 
   const quickLinks = [
@@ -55,20 +81,91 @@ const Dashboard = () => {
 
         {/* Weekly Meeting Reminder */}
         <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-6 mb-8 text-white shadow-lg">
-          <div className="flex items-start gap-4">
-            <div className="bg-white/20 p-3 rounded-lg">
-              <Bell size={28} />
+          {editingReminder ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Edit Weekly Meeting</h3>
+                <div className="flex gap-2">
+                  <button onClick={saveMeetingReminder} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg">
+                    <Save size={20} />
+                  </button>
+                  <button onClick={() => setEditingReminder(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg">
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Day</label>
+                  <select
+                    value={meetingReminder.day}
+                    onChange={(e) => setMeetingReminder({ ...meetingReminder, day: e.target.value })}
+                    className="w-full p-2 rounded-lg text-gray-900"
+                  >
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                      <option key={day} value={day}>{day}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Time</label>
+                  <input
+                    type="text"
+                    value={meetingReminder.time}
+                    onChange={(e) => setMeetingReminder({ ...meetingReminder, time: e.target.value })}
+                    className="w-full p-2 rounded-lg text-gray-900"
+                    placeholder="e.g., 4:00 PM"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Venue (optional)</label>
+                <input
+                  type="text"
+                  value={meetingReminder.venue}
+                  onChange={(e) => setMeetingReminder({ ...meetingReminder, venue: e.target.value })}
+                  className="w-full p-2 rounded-lg text-gray-900"
+                  placeholder="e.g., Main Boardroom"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Message</label>
+                <textarea
+                  value={meetingReminder.message}
+                  onChange={(e) => setMeetingReminder({ ...meetingReminder, message: e.target.value })}
+                  className="w-full p-2 rounded-lg text-gray-900 min-h-[80px]"
+                  placeholder="Enter reminder message..."
+                />
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-bold mb-2">Weekly Meeting Reminder</h3>
-              <p className="text-primary-100 text-lg">
-                Every Friday at 4:00 PM
-              </p>
-              <p className="text-primary-200 text-sm mt-2">
-                Please ensure you mark your attendance and prepare any updates you'd like to share.
-              </p>
+          ) : (
+            <div className="flex items-start gap-4">
+              <div className="bg-white/20 p-3 rounded-lg">
+                <Bell size={28} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold">Weekly Meeting Reminder</h3>
+                  {role === 'Admin' && (
+                    <button
+                      onClick={() => setEditingReminder(true)}
+                      className="bg-white/20 hover:bg-white/30 p-2 rounded-lg"
+                      title="Edit reminder"
+                    >
+                      <Edit size={18} />
+                    </button>
+                  )}
+                </div>
+                <p className="text-primary-100 text-lg">
+                  Every {meetingReminder.day} at {meetingReminder.time}
+                  {meetingReminder.venue && ` - ${meetingReminder.venue}`}
+                </p>
+                <p className="text-primary-200 text-sm mt-2">
+                  {meetingReminder.message}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Quick Links */}
