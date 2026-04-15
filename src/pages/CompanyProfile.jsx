@@ -34,6 +34,11 @@ const CompanyProfile = () => {
     content: '',
     images: []
   });
+  const [showActForm, setShowActForm] = useState(false);
+  const [actForm, setActForm] = useState({
+    title: '',
+    content: ''
+  });
   
   const canDownload = role === 'Admin' || role === 'Secretary';
   const canEdit = role === 'Admin' || memberPermissions.canEditCompanyProfile;
@@ -187,6 +192,28 @@ const CompanyProfile = () => {
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
+  };
+
+  const handleActSubmit = async (e) => {
+    e.preventDefault();
+    const data = {
+      ...actForm,
+      author: user.email,
+      authorName: user.email.split('@')[0],
+      createdAt: new Date().toISOString()
+    };
+
+    await addDocument('acts', data);
+    setActForm({ title: '', content: '' });
+    setShowActForm(false);
+    loadActs();
+  };
+
+  const handleDeleteAct = async (id) => {
+    if (window.confirm('Are you sure you want to delete this document?')) {
+      await deleteDocument('acts', id);
+      loadActs();
+    }
   };
 
   const downloadHistory = () => {
@@ -653,17 +680,73 @@ const CompanyProfile = () => {
 
         {/* Company Acts & Articles */}
         <div className="card">
-          <div className="flex items-center gap-3 mb-4">
-            <FileText className="text-primary-600" size={24} />
-            <h2 className="text-xl font-bold text-gray-900">Company Acts & Articles</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <FileText className="text-primary-600" size={24} />
+              <h2 className="text-xl font-bold text-gray-900">Company Acts & Articles</h2>
+            </div>
+            {role === 'Admin' && (
+              <button
+                onClick={() => setShowActForm(!showActForm)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Plus size={18} />
+                {showActForm ? 'Cancel' : 'Add Document'}
+              </button>
+            )}
           </div>
+
+          {/* Admin Form to Add Act/Article */}
+          {showActForm && role === 'Admin' && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-3">Add New Document</h3>
+              <form onSubmit={handleActSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                  <input
+                    type="text"
+                    value={actForm.title}
+                    onChange={(e) => setActForm({ ...actForm, title: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., Company Act 2024"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
+                  <textarea
+                    value={actForm.content}
+                    onChange={(e) => setActForm({ ...actForm, content: e.target.value })}
+                    className="input-field min-h-[150px]"
+                    placeholder="Enter document content..."
+                    required
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="btn-primary">
+                    Upload Document
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowActForm(false);
+                      setActForm({ title: '', content: '' });
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           
           {loading ? (
             <div className="text-center py-8 text-gray-500">Loading...</div>
           ) : acts.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <p>No acts or articles uploaded yet.</p>
-              <p className="text-sm mt-2">Contact an administrator to add documents.</p>
+              {role !== 'Admin' && <p className="text-sm mt-2">Contact an administrator to add documents.</p>}
             </div>
           ) : (
             <div className="space-y-4">
@@ -676,15 +759,26 @@ const CompanyProfile = () => {
                         Added on {new Date(act.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    {canDownload && (
-                      <button
-                        onClick={() => downloadAct(act)}
-                        className="btn-secondary flex items-center gap-2"
-                      >
-                        <Download size={16} />
-                        Download
-                      </button>
-                    )}
+                    <div className="flex gap-2">
+                      {canDownload && (
+                        <button
+                          onClick={() => downloadAct(act)}
+                          className="btn-secondary flex items-center gap-2"
+                        >
+                          <Download size={16} />
+                          Download
+                        </button>
+                      )}
+                      {role === 'Admin' && (
+                        <button
+                          onClick={() => handleDeleteAct(act.id)}
+                          className="btn-danger p-2"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-gray-700 mt-3 line-clamp-3">{act.content}</p>
                 </div>
