@@ -1,9 +1,10 @@
 import { 
   signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
 import { auth, db, isEmailAllowed } from './config';
 
 // Sign in with email and password
@@ -20,8 +21,40 @@ export const signIn = async (email, password) => {
       throw new Error('This email is not authorized to access the system.');
     }
 
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { success: true, user: userCredential.user };
+    try {
+      // Try to sign in normally
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return { success: true, user: userCredential.user };
+    } catch (signInError) {
+      // If sign in fails, check if this is first-time login with initial password
+      if (signInError.code === 'auth/invalid-credential' || signInError.code === 'auth/user-not-found') {
+        // Check if member exists with initial password
+        const membersQuery = query(collection(db, 'members'), where('email', '==', email.toLowerCase()));
+        const membersSnapshot = await getDocs(membersQuery);
+        
+        if (!membersSnapshot.empty) {
+          const memberDoc = membersSnapshot.docs[0];
+          const memberData = memberDoc.data();
+          
+          // Check if initial password matches
+          if (memberData.initialPassword === password) {
+            // Create Firebase Auth account for member
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            
+            // Update member record to mark password as set
+            await updateDoc(doc(db, 'members', memberDoc.id), {
+              passwordSet: true,
+              uid: userCredential.user.uid
+            });
+            
+            return { success: true, user: userCredential.user, message: 'Account created successfully. Welcome!' };
+          }
+        }
+      }
+      
+      // Re-throw the original error
+      throw signInError;
+    }
   } catch (error) {
     console.error('Sign in error:', error);
     return { success: false, error: error.message };

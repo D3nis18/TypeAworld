@@ -19,6 +19,7 @@ const Members = () => {
     email: '',
     contact: '',
     position: 'Member',
+    password: '',
     tags: [],
     permissions: {
       canEditMinutes: false,
@@ -58,8 +59,12 @@ const Members = () => {
     
     const data = {
       ...formData,
-      position: formData.position === 'Custom' ? customPosition : formData.position || 'Member'
+      position: formData.position === 'Custom' ? customPosition : formData.position || 'Member',
+      // Store initial password temporarily for first login
+      ...(formData.password && { initialPassword: formData.password, passwordSet: false })
     };
+    // Remove password from main data (stored separately)
+    delete data.password;
     
     if (editingMember) {
       await updateDocument('members', editingMember.id, data);
@@ -70,7 +75,7 @@ const Members = () => {
     setShowModal(false);
     setEditingMember(null);
     setCustomPosition('');
-    setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
+    setFormData({ name: '', email: '', contact: '', position: 'Member', password: '', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
     loadMembers();
   };
 
@@ -384,6 +389,26 @@ const Members = () => {
                     required
                   />
                 </div>
+
+                {!editingMember && role === 'Admin' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Initial Password <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="input-field"
+                      placeholder="Set initial password for member"
+                      required={!editingMember}
+                      minLength={6}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Member will use this password for first login. They can change it later.
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>

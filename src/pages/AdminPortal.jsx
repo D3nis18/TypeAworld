@@ -178,11 +178,14 @@ const AdminPortal = () => {
   };
 
   const resetPassword = async (member) => {
-    const newPassword = prompt(`Enter new password for ${member.name}:`);
+    const newPassword = prompt(`Enter new initial password for ${member.name}:`);
     if (newPassword && newPassword.length >= 6) {
-      // Note: Firebase Admin SDK would be needed to reset other users' passwords
-      // For now, we'll just show a message
-      alert('Password reset requires Firebase Admin SDK. Please reset manually in Firebase Console.');
+      // Set initial password in Firestore - member will use it on next login
+      await updateDocument('members', member.id, {
+        initialPassword: newPassword,
+        passwordSet: false
+      });
+      alert(`Initial password set successfully! ${member.name} will use this password on their next login.`);
     } else if (newPassword) {
       alert('Password must be at least 6 characters');
     }

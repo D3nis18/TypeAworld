@@ -39,7 +39,7 @@ service cloud.firestore {
     match /members/{memberId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
-      allow update: if isAdmin();
+      allow update: if isAdmin() || (request.auth != null && resource.data.email == request.auth.email);
       allow delete: if isAdmin();
     }
     
