@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Mail, FileText, Briefcase, Trash2, Plus, X, Edit, Lock, Unlock } from 'lucide-react';
+import { Shield, Users, Mail, FileText, Briefcase, Trash2, Plus, X, Edit, Lock, Unlock, Save } from 'lucide-react';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
-import { ALLOWED_EMAILS } from '../firebase/config';
+import { fetchAllowedEmails, getAllowedEmails } from '../firebase/config';
 import { auth } from '../firebase/config';
 import { updatePassword, deleteUser as deleteFirebaseUser } from 'firebase/auth';
 
 const AdminPortal = () => {
   const [activeTab, setActiveTab] = useState('members');
   const [members, setMembers] = useState([]);
-  const [allowedEmails, setAllowedEmails] = useState(ALLOWED_EMAILS);
+  const [allowedEmails, setAllowedEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -68,17 +68,31 @@ const AdminPortal = () => {
     if (result.success) {
       setMembers(result.data);
     }
+    // Load allowed emails from Firestore
+    const emails = await fetchAllowedEmails();
+    setAllowedEmails(emails);
     setLoading(false);
   };
 
-  const addAllowedEmail = () => {
+  const addAllowedEmail = async () => {
     if (newEmail && !allowedEmails.includes(newEmail.toLowerCase())) {
-      setAllowedEmails([...allowedEmails, newEmail.toLowerCase()]);
+      const email = newEmail.toLowerCase();
+      // Add to Firestore
+      await addDocument('allowedEmails', { email, createdAt: new Date().toISOString() });
+      setAllowedEmails([...allowedEmails, email]);
       setNewEmail('');
     }
   };
 
-  const removeAllowedEmail = (email) => {
+  const removeAllowedEmail = async (email) => {
+    // Find and delete from Firestore
+    const result = await getCollection('allowedEmails');
+    if (result.success) {
+      const emailDoc = result.data.find(doc => doc.email === email);
+      if (emailDoc) {
+        await deleteDocument('allowedEmails', emailDoc.id);
+      }
+    }
     setAllowedEmails(allowedEmails.filter(e => e !== email));
   };
 
@@ -419,11 +433,10 @@ const AdminPortal = () => {
               ))}
             </div>
 
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>Important:</strong> After updating the email list, you must manually update the 
-                <code className="bg-yellow-100 px-1 rounded">ALLOWED_EMAILS</code> array in 
-                <code className="bg-yellow-100 px-1 rounded">src/firebase/config.js</code> and redeploy the application.
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                <strong>Auto-Sync Enabled:</strong> Emails are now stored in Firestore and automatically synced across the app. 
+                No code changes needed - just add/remove emails here and they take effect immediately.
               </p>
             </div>
           </div>

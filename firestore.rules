@@ -178,5 +178,13 @@ service cloud.firestore {
       allow update: if isAdmin() || resource.data.author == request.auth.email;
       allow delete: if isAdmin() || resource.data.author == request.auth.email;
     }
+    
+    // Allowed Emails collection - Admin only
+    match /allowedEmails/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
   }
 }

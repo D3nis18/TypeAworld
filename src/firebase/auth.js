@@ -14,8 +14,9 @@ export const signIn = async (email, password) => {
       return { success: false, error: 'Firebase Auth not initialized. Please try again later.' };
     }
     
-    // Check if email is in allowlist
-    if (!isEmailAllowed(email)) {
+    // Check if email is in allowlist (async)
+    const allowed = await isEmailAllowed(email);
+    if (!allowed) {
       throw new Error('This email is not authorized to access the system.');
     }
 

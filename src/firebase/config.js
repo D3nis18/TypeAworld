@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Firebase Configuration
@@ -19,8 +19,8 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// ALLOWED EMAILS - Add your 11 approved emails here
-export const ALLOWED_EMAILS = [
+// Default allowed emails (fallback)
+const DEFAULT_ALLOWED_EMAILS = [
   'denismwg4@gmail.com',
   'secretary@jasminsoyian@mail.com',
   'member1@bykiptoo@gmail.com',
@@ -32,10 +32,34 @@ export const ALLOWED_EMAILS = [
   'member7@typeaworld.com',
   'member8@typeaworld.com',
   'member9@typeaworld.com'
-  // Add your actual emails here
 ];
 
-// Check if email is allowed
-export const isEmailAllowed = (email) => {
-  return ALLOWED_EMAILS.includes(email.toLowerCase());
+// Cache for allowed emails
+let cachedAllowedEmails = null;
+
+// Fetch allowed emails from Firestore
+export const fetchAllowedEmails = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'allowedEmails'));
+    const emails = querySnapshot.docs.map(doc => doc.data().email);
+    cachedAllowedEmails = emails;
+    return emails;
+  } catch (error) {
+    console.error('Error fetching allowed emails:', error);
+    return DEFAULT_ALLOWED_EMAILS;
+  }
 };
+
+// Get cached allowed emails (synchronous)
+export const getAllowedEmails = () => {
+  return cachedAllowedEmails || DEFAULT_ALLOWED_EMAILS;
+};
+
+// Check if email is allowed
+export const isEmailAllowed = async (email) => {
+  const emails = await fetchAllowedEmails();
+  return emails.includes(email.toLowerCase());
+};
+
+// For backward compatibility
+export const ALLOWED_EMAILS = DEFAULT_ALLOWED_EMAILS;
