@@ -138,5 +138,45 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if isAdmin() || resource.data.sender == request.auth.email;
     }
+    
+    // Meeting Reminder collection (Dashboard)
+    match /meetingReminder/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Issues collection
+    match /issues/{issueId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || resource.data.author == request.auth.email;
+      allow delete: if isAdmin() || resource.data.author == request.auth.email;
+    }
+    
+    // Issue Categories collection
+    match /issueCategories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageCategories == true);
+      allow update: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageCategories == true);
+      allow delete: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageCategories == true);
+    }
+    
+    // Departments collection
+    match /departments/{deptId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageDepartments == true);
+      allow update: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageDepartments == true);
+      allow delete: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageDepartments == true);
+    }
+    
+    // Department Posts collection
+    match /departmentPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || resource.data.author == request.auth.email;
+      allow delete: if isAdmin() || resource.data.author == request.auth.email;
+    }
   }
 }
