@@ -13,6 +13,7 @@ const Members = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [customTagInput, setCustomTagInput] = useState('');
+  const [customPosition, setCustomPosition] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -29,7 +30,7 @@ const Members = () => {
     }
   });
 
-  const availablePositions = ['Founder', 'Chairman', 'Secretary', 'Treasurer', 'Member'];
+  const availablePositions = ['Founder', 'Chairman', 'Secretary', 'Treasurer', 'Member', 'Custom'];
   const availableTags = ['#Founder', '#Secretary', '#Treasurer', '#Executive', '#Active'];
   const permissionOptions = [
     { key: 'canEditMinutes', label: 'Can Edit Minutes' },
@@ -55,14 +56,20 @@ const Members = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    const data = {
+      ...formData,
+      position: formData.position === 'Custom' ? customPosition : formData.position || 'Member'
+    };
+    
     if (editingMember) {
-      await updateDocument('members', editingMember.id, formData);
+      await updateDocument('members', editingMember.id, data);
     } else {
-      await addDocument('members', formData);
+      await addDocument('members', data);
     }
     
     setShowModal(false);
     setEditingMember(null);
+    setCustomPosition('');
     setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
     loadMembers();
   };
@@ -188,6 +195,7 @@ const Members = () => {
                   setEditingMember(null);
                   setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
                   setCustomTagInput('');
+                  setCustomPosition('');
                   setShowModal(true);
                 }}
                 className="btn-primary flex items-center gap-2"
@@ -389,17 +397,29 @@ const Members = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Position <span className="text-gray-400">(Optional)</span>
+                  </label>
                   <select
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="input-field"
-                    required
                   >
+                    <option value="">Select Position</option>
                     {availablePositions.map(pos => (
                       <option key={pos} value={pos}>{pos}</option>
                     ))}
                   </select>
+                  {formData.position === 'Custom' && (
+                    <input
+                      type="text"
+                      value={customPosition}
+                      onChange={(e) => setCustomPosition(e.target.value)}
+                      className="input-field mt-2"
+                      placeholder="e.g., Head of Marketing, Department Head"
+                      required
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -487,6 +507,7 @@ const Members = () => {
                       setShowModal(false);
                       setEditingMember(null);
                       setCustomTagInput('');
+                      setCustomPosition('');
                       setFormData({ name: '', email: '', contact: '', position: 'Member', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
                     }}
                     className="btn-secondary flex-1"
