@@ -685,7 +685,7 @@ const CompanyProfile = () => {
               <FileText className="text-primary-600" size={24} />
               <h2 className="text-xl font-bold text-gray-900">Company Acts & Articles</h2>
             </div>
-            {role === 'Admin' && (
+            {canEdit && (
               <button
                 onClick={() => setShowActForm(!showActForm)}
                 className="btn-primary flex items-center gap-2"
@@ -697,7 +697,7 @@ const CompanyProfile = () => {
           </div>
 
           {/* Admin Form to Add Act/Article */}
-          {showActForm && role === 'Admin' && (
+          {showActForm && canEdit && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="text-lg font-semibold mb-3">Add New Document</h3>
               <form onSubmit={handleActSubmit} className="space-y-4">
@@ -769,13 +769,13 @@ const CompanyProfile = () => {
                           Download
                         </button>
                       )}
-                      {role === 'Admin' && (
+                      {canEdit && (
                         <button
                           onClick={() => handleDeleteAct(act.id)}
                           className="btn-danger p-2"
                           title="Delete"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       )}
                     </div>

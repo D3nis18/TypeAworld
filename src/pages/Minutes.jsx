@@ -279,6 +279,15 @@ const Minutes = () => {
     );
   }
 
+  // Don't show Access Denied until permissions are loaded (for non-Admin users)
+  if (role && role !== 'Admin' && role !== 'Secretary' && !memberPermissions.canViewMinutes === true && !memberPermissions.canViewMinutes === false) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Checking permissions...</div>
+      </div>
+    );
+  }
+
   if (!canView) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

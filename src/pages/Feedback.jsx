@@ -76,6 +76,15 @@ const Feedback = () => {
     );
   }
 
+  // Don't check permissions until loaded (for non-Admin users)
+  if (role && role !== 'Admin' && !memberPermissions.canViewFeedback === true && !memberPermissions.canViewFeedback === false) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Checking permissions...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
