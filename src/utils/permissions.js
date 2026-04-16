@@ -25,6 +25,27 @@ export const getMemberPermissions = async (email) => {
     if (result.success) {
       const member = result.data.find(m => m.email === email);
       if (member) {
+        // Admin gets all permissions by default
+        if (member.role === 'Admin' || email === 'denismwg4@gmail.com') {
+          return {
+            canEditMinutes: true,
+            canEditProjects: true,
+            canEditAttendance: true,
+            canDeleteMinutes: true,
+            canDeleteProjects: true,
+            canDeleteAttendance: true,
+            canPostTreasurerReports: true,
+            canEditTreasurerReports: true,
+            canDeleteTreasurerReports: true,
+            canViewFeedback: true,
+            canViewSuggestions: true,
+            canEditCompanyProfile: true,
+            canManageDepartments: true,
+            canManageCategories: true,
+            canManageAccounts: true,
+            ...member.permissions
+          };
+        }
         return member.permissions || {};
       }
     }

@@ -151,6 +151,45 @@ export const createOrUpdateUser = async (uid, userData) => {
     }
     
     await setDoc(userRef, dataToSet, { merge: true });
+    
+    // Also ensure Admin has a member record so they appear in members list and can chat
+    if (userData.email === 'denismwg4@gmail.com') {
+      const membersQuery = query(collection(db, 'members'), where('email', '==', userData.email.toLowerCase()));
+      const membersSnapshot = await getDocs(membersQuery);
+      
+      if (membersSnapshot.empty) {
+        // Admin doesn't have a member record - create one with full permissions
+        await addDoc(collection(db, 'members'), {
+          name: userData.name || 'Admin',
+          surname: userData.surname || 'User',
+          email: userData.email.toLowerCase(),
+          contact: userData.contact || '',
+          position: 'Administrator',
+          role: 'Admin',
+          tags: ['admin'],
+          permissions: {
+            canEditMinutes: true,
+            canEditProjects: true,
+            canEditAttendance: true,
+            canDeleteMinutes: true,
+            canDeleteProjects: true,
+            canDeleteAttendance: true,
+            canPostTreasurerReports: true,
+            canEditTreasurerReports: true,
+            canDeleteTreasurerReports: true,
+            canViewFeedback: true,
+            canViewSuggestions: true,
+            canEditCompanyProfile: true,
+            canManageDepartments: true,
+            canManageCategories: true,
+            canManageAccounts: true
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+    
     return { success: true };
   } catch (error) {
     console.error('Error creating/updating user:', error);
