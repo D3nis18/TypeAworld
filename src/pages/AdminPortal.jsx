@@ -166,7 +166,7 @@ const AdminPortal = () => {
   };
 
   const suspendAccount = async (member) => {
-    if (window.confirm(`Are you sure you want to suspend ${member.name}?`)) {
+    if (window.confirm(`Are you sure you want to suspend ${member.name} ${member.surname || ''}?`)) {
       await updateDocument('members', member.id, { suspended: true });
       loadData();
     }
@@ -178,21 +178,21 @@ const AdminPortal = () => {
   };
 
   const resetPassword = async (member) => {
-    const newPassword = prompt(`Enter new initial password for ${member.name}:`);
+    const newPassword = prompt(`Enter new initial password for ${member.name} ${member.surname || ''}:`);
     if (newPassword && newPassword.length >= 6) {
       // Set initial password in Firestore - member will use it on next login
       await updateDocument('members', member.id, {
         initialPassword: newPassword,
         passwordSet: false
       });
-      alert(`Initial password set successfully! ${member.name} will use this password on their next login.`);
+      alert(`Initial password set successfully! ${member.name} ${member.surname || ''} will use this password on their next login.`);
     } else if (newPassword) {
       alert('Password must be at least 6 characters');
     }
   };
 
   const deleteAccount = async (member) => {
-    if (window.confirm(`Are you sure you want to delete ${member.name}'s account? This cannot be undone.`)) {
+    if (window.confirm(`Are you sure you want to delete ${member.name} ${member.surname || ''}'s account? This cannot be undone.`)) {
       await deleteDocument('members', member.id);
       // Remove from allowed emails
       setAllowedEmails(allowedEmails.filter(e => e !== member.email));
@@ -265,7 +265,7 @@ const AdminPortal = () => {
                 {members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{member.name}</h3>
+                      <h3 className="font-semibold text-gray-900">{member.name} {member.surname}</h3>
                       <p className="text-sm text-gray-600">{member.email}</p>
                       <p className="text-sm text-gray-500">
                         {member.position} • {member.tags.join(', ')}
@@ -343,7 +343,7 @@ const AdminPortal = () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">
-                Edit Permissions for {selectedMember.name}
+                Edit Permissions for {selectedMember.name} {selectedMember.surname}
               </h3>
               
               <div className="max-h-[60vh] overflow-y-auto space-y-4">

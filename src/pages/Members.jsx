@@ -16,6 +16,7 @@ const Members = () => {
   const [customPosition, setCustomPosition] = useState('');
   const [formData, setFormData] = useState({
     name: '',
+    surname: '',
     email: '',
     contact: '',
     position: 'Member',
@@ -75,7 +76,7 @@ const Members = () => {
     setShowModal(false);
     setEditingMember(null);
     setCustomPosition('');
-    setFormData({ name: '', email: '', contact: '', position: 'Member', password: '', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
+    setFormData({ name: '', surname: '', email: '', contact: '', position: 'Member', password: '', tags: [], permissions: { canEditMinutes: false, canEditProjects: false, canEditAttendance: false, canDeleteMinutes: false, canDeleteProjects: false, canDeleteAttendance: false } });
     loadMembers();
   };
 
@@ -147,7 +148,7 @@ const Members = () => {
     
     let yPosition = 40;
     members.forEach((member, index) => {
-      doc.text(`${index + 1}. ${member.name}`, 20, yPosition);
+      doc.text(`${index + 1}. ${member.name} ${member.surname || ''}`, 20, yPosition);
       doc.text(`   Position: ${member.position}`, 20, yPosition + 7);
       doc.text(`   Contact: ${member.contact}`, 20, yPosition + 14);
       doc.text(`   Email: ${member.email}`, 20, yPosition + 21);
@@ -287,7 +288,7 @@ const Members = () => {
                   {members.map((member) => (
                     <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
-                        <div className="font-medium text-gray-900">{member.name}</div>
+                        <div className="font-medium text-gray-900">{member.name} {member.surname}</div>
                         <div className="text-sm text-gray-500 flex items-center gap-1">
                           <Mail size={14} />
                           {member.email}
@@ -368,15 +369,27 @@ const Members = () => {
               </h3>
               
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input-field"
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Surname</label>
+                    <input
+                      type="text"
+                      value={formData.surname}
+                      onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                      className="input-field"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div>
