@@ -22,8 +22,8 @@ export const storage = getStorage(app);
 // Default allowed emails (fallback)
 const DEFAULT_ALLOWED_EMAILS = [
   'denismwg4@gmail.com',
-  'secretary@jasminsoyian@mail.com',
-  'member1@bykiptoo@gmail.com',
+  'jasminsoyian@mail.com',
+  'amgideonkaranja@gmail.com',
   'member2@rugakarule@gmail.com',
   'member3@pmuchai17@gmail.com',
   'ceo@amgideonkaranja@gmail.com',
