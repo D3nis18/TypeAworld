@@ -4,6 +4,8 @@ import { getCollection, addDocument, updateDocument, deleteDocument } from '../f
 import { useAuth } from '../context/AuthContext';
 import { getMemberPermissions, canEditContent, canDeleteTreasurerReports } from '../utils/permissions';
 import { jsPDF } from 'jspdf';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 const TreasurerReports = () => {
   const { role, user } = useAuth();
@@ -30,11 +32,13 @@ const TreasurerReports = () => {
   const canDeleteReport = role === 'Admin' || canDeleteTreasurerReports(role, memberPermissions);
 
   useEffect(() => {
-    loadReports();
+    // Use real-time subscription instead of one-time load
+    const unsubscribe = subscribeToReports();
     // Load permissions for all non-Admin users
     if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
     }
+    return () => unsubscribe();
   }, [role, user]);
 
   const loadMemberPermissions = async () => {
@@ -42,20 +46,39 @@ const TreasurerReports = () => {
     setMemberPermissions(permissions);
   };
 
+  const calculateBalances = (reportsData) => {
+    // Sort by date ascending (oldest first) for correct balance calculation
+    const sorted = [...reportsData].sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Calculate running balance from oldest to newest
+    let runningBalance = 0;
+    const withBalance = sorted.map(report => {
+      runningBalance += (parseFloat(report.credited) || 0) - (parseFloat(report.debited) || 0);
+      return { ...report, calculatedBalance: runningBalance };
+    });
+    return withBalance;
+  };
+
   const loadReports = async () => {
     const result = await getCollection('treasurerReports');
     if (result.success) {
-      // Sort by date descending
-      const sorted = result.data.sort((a, b) => new Date(b.date) - new Date(a.date));
-      // Calculate running balance
-      let runningBalance = 0;
-      const withBalance = sorted.map(report => {
-        runningBalance += (parseFloat(report.credited) || 0) - (parseFloat(report.debited) || 0);
-        return { ...report, balance: runningBalance };
-      }).reverse(); // Reverse to show oldest first
+      const withBalance = calculateBalances(result.data);
       setReports(withBalance);
     }
     setLoading(false);
+  };
+
+  // Real-time subscription for live updates to all members
+  const subscribeToReports = () => {
+    const reportsQuery = query(collection(db, 'treasurerReports'), orderBy('date', 'asc'));
+    return onSnapshot(reportsQuery, (snapshot) => {
+      const reportsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      const withBalance = calculateBalances(reportsData);
+      setReports(withBalance);
+      setLoading(false);
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -85,7 +108,7 @@ const TreasurerReports = () => {
       balance: 0,
       usedFor: ''
     });
-    loadReports();
+    // No need to call loadReports() - real-time subscription handles it
   };
 
   const handleEdit = (report) => {
@@ -112,7 +135,7 @@ const TreasurerReports = () => {
     doc.text(`Description: ${report.description}`, 20, 50);
     doc.text(`Credited: KES ${report.credited.toLocaleString()}`, 20, 60);
     doc.text(`Debited: KES ${report.debited.toLocaleString()}`, 20, 70);
-    doc.text(`Balance: KES ${report.balance.toLocaleString()}`, 20, 80);
+    doc.text(`Balance: KES ${(report.calculatedBalance || report.balance || 0).toLocaleString()}`, 20, 80);
     doc.text(`Used For: ${report.usedFor || 'N/A'}`, 20, 90);
     doc.text(`Author: ${report.authorName} (${report.author})`, 20, 100);
     doc.save(`treasurer-report-${report.date}.pdf`);
@@ -141,7 +164,7 @@ const TreasurerReports = () => {
       yPosition += 7;
       doc.text(`Debited: KES ${report.debited.toLocaleString()}`, 20, yPosition);
       yPosition += 7;
-      doc.text(`Balance: KES ${report.balance.toLocaleString()}`, 20, yPosition);
+      doc.text(`Balance: KES ${(report.calculatedBalance || report.balance || 0).toLocaleString()}`, 20, yPosition);
       yPosition += 7;
       doc.text(`Used For: ${report.usedFor || 'N/A'}`, 20, yPosition);
       yPosition += 15;
@@ -151,7 +174,8 @@ const TreasurerReports = () => {
   };
 
   const calculateTotalBalance = () => {
-    return reports.length > 0 ? reports[reports.length - 1].balance : 0;
+    const lastReport = reports[reports.length - 1];
+    return lastReport ? (lastReport.calculatedBalance || lastReport.balance || 0) : 0;
   };
 
   if (loading) {
@@ -324,7 +348,7 @@ const TreasurerReports = () => {
                         </p>
                       )}
                       <p className="text-lg font-bold text-primary-600 mt-2">
-                        Balance: KES {report.balance.toLocaleString()}
+                        Balance: KES {(report.calculatedBalance || report.balance || 0).toLocaleString()}
                       </p>
                       <p className="text-xs text-gray-400 mt-2">
                         Posted by {report.authorName} on {new Date(report.createdAt).toLocaleString()}
