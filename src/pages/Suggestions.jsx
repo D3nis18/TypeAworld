@@ -23,7 +23,7 @@ const Suggestions = () => {
 
   useEffect(() => {
     loadSuggestions();
-    if (role === 'Member' && user) {
+    if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
     }
   }, [role, user]);

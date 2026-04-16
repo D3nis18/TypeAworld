@@ -35,7 +35,8 @@ const Minutes = () => {
 
   useEffect(() => {
     loadMinutes();
-    if (role === 'Member' && user) {
+    // Load permissions for all non-Admin users
+    if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
     }
   }, [role, user]);

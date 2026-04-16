@@ -31,7 +31,8 @@ const TreasurerReports = () => {
 
   useEffect(() => {
     loadReports();
-    if (role === 'Member' && user) {
+    // Load permissions for all non-Admin users
+    if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
     }
   }, [role, user]);

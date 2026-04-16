@@ -23,10 +23,10 @@ const Issues = () => {
   useEffect(() => {
     loadIssues();
     loadCategories();
-    if (role === 'Member' && user) {
+    if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
     }
-  }, []);
+  }, [role, user]);
 
   useEffect(() => {
     if (categories.length > 0 && !formData.category) {

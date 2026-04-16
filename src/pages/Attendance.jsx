@@ -28,7 +28,7 @@ const Attendance = () => {
 
   useEffect(() => {
     loadData();
-    if (role === 'Member' && user) {
+    if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
     }
   }, [role, user]);

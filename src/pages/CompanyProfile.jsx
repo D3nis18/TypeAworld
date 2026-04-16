@@ -47,7 +47,7 @@ const CompanyProfile = () => {
     loadCompanyInfo();
     loadActs();
     loadDepartments();
-    if (role === 'Member' && user) {
+    if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
     }
   }, [role, user]);
