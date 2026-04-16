@@ -24,7 +24,7 @@ const DEFAULT_ALLOWED_EMAILS = [
   'denismwg4@gmail.com',
   'jasminsoyian@mail.com',
   'amgideonkaranja@gmail.com',
-  'member2@rugakarule@gmail.com',
+  'ramatsammy@gmail.com',
   'member3@pmuchai17@gmail.com',
   'ceo@amgideonkaranja@gmail.com',
   'member5@typeaworld.com',

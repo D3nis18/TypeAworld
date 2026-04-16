@@ -11,6 +11,8 @@ const Chat = () => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const MAX_MESSAGE_LENGTH = 2000;
+  const [sending, setSending] = useState(false);
   const [members, setMembers] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,7 +26,8 @@ const Chat = () => {
   // Load members and conversations
   useEffect(() => {
     loadMembers();
-    loadConversations();
+    const unsubscribe = subscribeToConversations();
+    return () => unsubscribe();
   }, [user]);
 
   // Subscribe to messages for selected chat
@@ -66,6 +69,18 @@ const Chat = () => {
       setConversations(userChats);
     }
     setLoading(false);
+  };
+
+  // Real-time subscription for conversations
+  const subscribeToConversations = () => {
+    const chatsQuery = query(collection(db, 'chats'));
+    return onSnapshot(chatsQuery, (snapshot) => {
+      const chats = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })).filter(chat => chat.participants && chat.participants.includes(user.email));
+      setConversations(chats);
+    });
   };
 
   const scrollToBottom = () => {
@@ -122,7 +137,9 @@ const Chat = () => {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedChat) return;
+    if (!newMessage.trim() || !selectedChat || sending) return;
+    
+    setSending(true);
 
     const messageData = {
       chatId: selectedChat.id,
@@ -137,6 +154,7 @@ const Chat = () => {
     await addDocument('messages', messageData);
     setNewMessage('');
     setAnonymous(false);
+    setSending(false);
 
     // Update chat last message
     // await updateDocument('chats', selectedChat.id, {
@@ -303,7 +321,7 @@ const Chat = () => {
                                 )}
                               </p>
                             )}
-                            <p className="leading-relaxed">{msg.content}</p>
+                            <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                             <p className={`text-xs mt-1 ${isMe ? 'text-primary-200' : 'text-gray-500'}`}>
                               {format(new Date(msg.createdAt), 'h:mm a')}
                             </p>
@@ -322,22 +340,38 @@ const Chat = () => {
                       <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
                         <Paperclip size={20} />
                       </button>
-                      <input
-                        type="text"
+                      <textarea
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        onChange={(e) => {
+                          if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
+                            setNewMessage(e.target.value);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (newMessage.trim()) {
+                              sendMessage(e);
+                            }
+                          }
+                        }}
+                        placeholder="Type a message... (Shift+Enter for new line)"
+                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none min-h-[44px] max-h-[120px]"
+                        rows={1}
                       />
                       <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
                         <Smile size={20} />
                       </button>
                       <button
                         type="submit"
-                        disabled={!newMessage.trim()}
+                        disabled={!newMessage.trim() || sending}
                         className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                       >
-                        <Send size={20} />
+                        {sending ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Send size={20} />
+                        )}
                       </button>
                     </div>
                     <div className="flex items-center justify-between">
@@ -358,8 +392,8 @@ const Chat = () => {
                           </span>
                         )}
                       </label>
-                      <span className="text-xs text-gray-400">
-                        Press Enter to send
+                      <span className={`text-xs ${newMessage.length > MAX_MESSAGE_LENGTH * 0.9 ? 'text-orange-500' : 'text-gray-400'}`}>
+                        {newMessage.length}/{MAX_MESSAGE_LENGTH} • Shift+Enter for new line • Enter to send
                       </span>
                     </div>
                   </form>
