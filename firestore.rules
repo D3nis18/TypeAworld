@@ -1,190 +1,25 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    // Allow read if authenticated
+    match /allowedEmails/{email} {
+      allow read: if request.auth != null;
     }
     
-    // Helper function to get user role
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    // Allow users to read chats they're participants in
+    match /chats/{chat} {
+      allow read: if request.auth != null && 
+        resource.data.participants.hasAny([request.auth.token.email]);
     }
     
-    // Helper function to check if user is admin
-    function isAdmin() {
-      return getUserRole() == 'Admin';
+    // Allow users to read/write messages in their chats
+    match /messages/{message} {
+      allow read, create: if request.auth != null;
     }
     
-    // Helper function to check if user is secretary
-    function isSecretary() {
-      return getUserRole() == 'Secretary';
-    }
-    
-    // Helper function to check if user is admin or secretary
-    function isAdminOrSecretary() {
-      return isAdmin() || isSecretary();
-    }
-    
-    // Users collection - users can create/update their own document
-    match /users/{userId} {
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && request.auth.uid == userId;
-      allow delete: if false;
-    }
-    
-    // Members collection
-    match /members/{memberId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin() || (request.auth != null && resource.data.email == request.auth.email);
-      allow delete: if isAdmin();
-    }
-    
-    // Minutes collection
-    match /minutes/{minuteId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdminOrSecretary();
-      allow update: if isAdminOrSecretary() && resource.data.author == request.auth.email;
-      allow delete: if isAdminOrSecretary();
-    }
-    
-    // Projects collection
-    match /projects/{projectId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (resource.data.author == request.auth.email || isAdmin());
-      allow delete: if isAdmin();
-    }
-    
-    // Attendance collection
-    match /attendance/{attendanceId} {
-      allow read: if isAdminOrSecretary() || resource.data.email == request.auth.email;
-      allow create: if isAuthenticated();
-      allow update: if false;
-      allow delete: if isAdmin();
-    }
-    
-    // Apologies collection
-    match /apologies/{apologyId} {
-      allow read: if isAdminOrSecretary() || resource.data.email == request.auth.email;
-      allow create: if isAuthenticated();
-      allow update: if false;
-      allow delete: if isAdminOrSecretary();
-    }
-    
-    // Acts collection (Company Acts & Articles)
-    match /acts/{actId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // Company History collection
-    match /companyHistory/{docId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // Company Objects collection
-    match /companyObjects/{docId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // Treasurer Reports collection
-    match /treasurerReports/{reportId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canPostTreasurerReports == true);
-      allow update: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canEditTreasurerReports == true);
-      allow delete: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canDeleteTreasurerReports == true);
-    }
-    
-    // Feedback collection
-    match /feedback/{feedbackId} {
-      allow read: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canViewFeedback == true) || resource.data.author == request.auth.email;
-      allow create: if isAuthenticated();
-      allow update: if resource.data.author == request.auth.email;
-      allow delete: if isAdmin() || resource.data.author == request.auth.email;
-    }
-    
-    // Suggestions collection
-    match /suggestions/{suggestionId} {
-      allow read: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canViewSuggestions == true) || resource.data.author == request.auth.email;
-      allow create: if isAuthenticated();
-      allow update: if isAdmin() || resource.data.author == request.auth.email;
-      allow delete: if isAdmin();
-    }
-    
-    // Chat collection - participants can read their chats
-    match /chats/{chatId} {
-      allow read: if isAuthenticated() && request.auth.email in resource.data.participants;
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && request.auth.email in resource.data.participants;
-      allow delete: if isAdmin();
-    }
-    
-    // Messages collection - participants in the chat can read/write messages
-    match /messages/{messageId} {
-      allow read: if isAuthenticated() && request.auth.email in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.participants;
-      allow create: if isAuthenticated() && request.auth.email in get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.participants;
-      allow update: if false;
-      allow delete: if isAdmin() || resource.data.sender == request.auth.email;
-    }
-    
-    // Meeting Reminder collection (Dashboard)
-    match /meetingReminder/{docId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // Issues collection
-    match /issues/{issueId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin() || resource.data.author == request.auth.email;
-      allow delete: if isAdmin() || resource.data.author == request.auth.email;
-    }
-    
-    // Issue Categories collection
-    match /issueCategories/{categoryId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageCategories == true);
-      allow update: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageCategories == true);
-      allow delete: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageCategories == true);
-    }
-    
-    // Departments collection
-    match /departments/{deptId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageDepartments == true);
-      allow update: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageDepartments == true);
-      allow delete: if isAdmin() || (request.auth != null && get(/databases/$(database)/documents/members/$(request.auth.email)).data.permissions.canManageDepartments == true);
-    }
-    
-    // Department Posts collection
-    match /departmentPosts/{postId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin() || resource.data.author == request.auth.email;
-      allow delete: if isAdmin() || resource.data.author == request.auth.email;
-    }
-    
-    // Allowed Emails collection - Admin only
-    match /allowedEmails/{docId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+    // Allow users to read members
+    match /members/{member} {
+      allow read: if request.auth != null;
     }
   }
 }
