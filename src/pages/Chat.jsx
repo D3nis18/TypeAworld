@@ -18,6 +18,7 @@ const Chat = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [anonymous, setAnonymous] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
   const [chatType, setChatType] = useState('individual'); // 'individual', 'admin', 'group'
   const [groupName, setGroupName] = useState('');
@@ -94,6 +95,10 @@ const Chat = () => {
       setLoading(false);
     }, (error) => {
       console.error('Error loading conversations:', error);
+      // Handle permission errors gracefully
+      if (error.code === 'permission-denied') {
+        setError('Chat access denied. Please check your permissions or contact admin.');
+      }
       setLoading(false);
     });
   };
@@ -211,6 +216,22 @@ const Chat = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-gray-500">
           {authLoading ? 'Authenticating...' : 'Loading chat...'}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">{error}</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );

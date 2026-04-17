@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Firebase Configuration
@@ -55,11 +55,43 @@ export const getAllowedEmails = () => {
   return cachedAllowedEmails || DEFAULT_ALLOWED_EMAILS;
 };
 
+// Check if email exists in members collection (fallback for permission issues)
+const isEmailInMembers = async (email) => {
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+    const membersQuery = query(collection(db, 'members'), where('email', '==', normalizedEmail));
+    const snapshot = await getDocs(membersQuery);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error checking members:', error);
+    return false;
+  }
+};
+
 // Check if email is allowed (case-insensitive comparison)
+// Falls back to members collection if allowedEmails fails due to permissions
 export const isEmailAllowed = async (email) => {
-  const emails = await fetchAllowedEmails();
   const normalizedEmail = email.toLowerCase().trim();
-  return emails.some(e => e.toLowerCase().trim() === normalizedEmail);
+
+  // First check DEFAULT_ALLOWED_EMAILS (always works, no permissions needed)
+  const inDefaultList = DEFAULT_ALLOWED_EMAILS.some(e => e.toLowerCase().trim() === normalizedEmail);
+  if (inDefaultList) return true;
+
+  // Try to fetch from Firestore allowedEmails collection
+  try {
+    const emails = await fetchAllowedEmails();
+    const inFirestoreList = emails.some(e => e.toLowerCase().trim() === normalizedEmail);
+    if (inFirestoreList) return true;
+  } catch (error) {
+    console.log('Firestore allowedEmails check failed, trying members collection...');
+  }
+
+  // Fallback: check if email exists in members collection
+  const inMembers = await isEmailInMembers(email);
+  if (inMembers) return true;
+
+  // Not authorized
+  return false;
 };
 
 // For backward compatibility
