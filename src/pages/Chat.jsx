@@ -81,6 +81,7 @@ const Chat = () => {
         ...doc.data()
       })).filter(chat => chat.participants && chat.participants.includes(user.email));
       setConversations(chats);
+      setLoading(false);
     });
   };
 
