@@ -6,8 +6,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { jsPDF } from 'jspdf';
 
 const Members = () => {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const canDownload = role === 'Admin' || role === 'Secretary';
+  const isCurrentUser = (memberEmail) => user?.email?.toLowerCase() === memberEmail?.toLowerCase();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -335,20 +336,26 @@ const Members = () => {
                       {role === 'Admin' && (
                         <td className="py-3 px-4">
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEdit(member)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Edit size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(member.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            {!isCurrentUser(member.email) ? (
+                              <>
+                                <button
+                                  onClick={() => handleEdit(member)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit size={18} />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(member.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Protected</span>
+                            )}
                           </div>
                         </td>
                       )}

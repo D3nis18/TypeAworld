@@ -54,8 +54,19 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
+  // Helper to get display name for user
+  const getDisplayName = () => {
+    if (!user?.email) return 'User';
+    // Admin account
+    if (user.email.toLowerCase() === 'denismwg4@gmail.com') {
+      return 'Denis Mwangi';
+    }
+    // Default: use email username
+    return user.email.split('@')[0];
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, loading, displayName: getDisplayName() }}>
       {children}
     </AuthContext.Provider>
   );

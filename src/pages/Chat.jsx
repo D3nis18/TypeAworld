@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 
 const Chat = () => {
-  const { role, user } = useAuth();
+  const { role, user, displayName } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -145,7 +145,7 @@ const Chat = () => {
     const messageData = {
       chatId: selectedChat.id,
       sender: user.email,
-      senderName: anonymous ? 'Anonymous' : user.email.split('@')[0],
+      senderName: anonymous ? 'Anonymous' : displayName,
       content: newMessage.trim(),
       anonymous: anonymous,
       createdAt: new Date().toISOString(),

@@ -10,7 +10,7 @@ import { query, where, onSnapshot, collection } from '../firebase/firestore';
 import { db } from '../firebase/config';
 
 const Navbar = () => {
-  const { user, role } = useAuth();
+  const { user, role, displayName } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -226,7 +226,7 @@ const Navbar = () => {
                 <div className="w-7 h-7 bg-primary-100 rounded-full flex items-center justify-center">
                   <User size={14} className="text-primary-600" />
                 </div>
-                <span className="max-w-[100px] truncate">{user?.email?.split('@')[0]}</span>
+                <span className="max-w-[100px] truncate">{displayName}</span>
                 <ChevronDown size={14} />
               </button>
 
