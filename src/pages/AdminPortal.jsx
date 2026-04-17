@@ -14,6 +14,7 @@ const AdminPortal = () => {
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberPermissions, setMemberPermissions] = useState({
+    isAdmin: false,
     canViewMinutes: false,
     canDownloadMinutes: false,
     canPostMinutes: false,
@@ -55,6 +56,7 @@ const AdminPortal = () => {
     { key: 'canManageAccounts', label: 'Can Manage Accounts', category: 'Admin' },
     { key: 'canViewSuggestions', label: 'Can View Suggestions', category: 'Dev Box' },
     { key: 'canDeleteSuggestions', label: 'Can Delete Suggestions', category: 'Dev Box' },
+    { key: 'isAdmin', label: 'Grant Admin Access (Full Power)', category: 'Admin' },
     { key: 'canManageCategories', label: 'Can Manage Issue Categories', category: 'Issues' },
     { key: 'canManageDepartments', label: 'Can Manage Departments', category: 'Company Profile' }
   ];
@@ -96,22 +98,35 @@ const AdminPortal = () => {
     setAllowedEmails(allowedEmails.filter(e => e !== email));
   };
 
-  const deleteMember = async (id) => {
+  const deleteMember = async (id, email) => {
+    if (isMainAdmin(email)) {
+      alert('Main admin cannot be deleted.');
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this member?')) {
       await deleteDocument('members', id);
       loadData();
     }
   };
 
+  const isMainAdmin = (email) => email === 'denismwg4@gmail.com';
+
   const openPermissionModal = (member) => {
+    // Prevent editing main admin's permissions
+    if (isMainAdmin(member.email)) {
+      alert('Main admin permissions cannot be edited.');
+      return;
+    }
     setSelectedMember(member);
     setMemberPermissions(member.permissions || {
+      isAdmin: false,
       canEditMinutes: false,
       canEditProjects: false,
       canEditAttendance: false,
       canDeleteMinutes: false,
       canDeleteProjects: false,
-      canDeleteAttendance: false
+      canDeleteAttendance: false,
+      canDeleteSuggestions: false
     });
     setShowPermissionModal(true);
   };
@@ -166,6 +181,10 @@ const AdminPortal = () => {
   };
 
   const suspendAccount = async (member) => {
+    if (isMainAdmin(member.email)) {
+      alert('Main admin cannot be suspended.');
+      return;
+    }
     if (window.confirm(`Are you sure you want to suspend ${member.name} ${member.surname || ''}?`)) {
       await updateDocument('members', member.id, { suspended: true });
       loadData();
@@ -192,6 +211,10 @@ const AdminPortal = () => {
   };
 
   const deleteAccount = async (member) => {
+    if (isMainAdmin(member.email)) {
+      alert('Main admin cannot be deleted.');
+      return;
+    }
     if (window.confirm(`Are you sure you want to delete ${member.name} ${member.surname || ''}'s account? This cannot be undone.`)) {
       await deleteDocument('members', member.id);
       // Remove from allowed emails
@@ -292,44 +315,53 @@ const AdminPortal = () => {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      {member.suspended ? (
-                        <button
-                          onClick={() => unsuspendAccount(member)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Unsuspend Account"
-                        >
-                          <Unlock size={18} />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => suspendAccount(member)}
-                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                          title="Suspend Account"
-                        >
-                          <Lock size={18} />
-                        </button>
+                      {!isMainAdmin(member.email) && (
+                        <>
+                          {member.suspended ? (
+                            <button
+                              onClick={() => unsuspendAccount(member)}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Unsuspend Account"
+                            >
+                              <Unlock size={18} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => suspendAccount(member)}
+                              className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Suspend Account"
+                            >
+                              <Lock size={18} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => resetPassword(member)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Reset Password"
+                          >
+                            <Lock size={18} />
+                          </button>
+                          <button
+                            onClick={() => openPermissionModal(member)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit Permissions"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => deleteAccount(member)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Account"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
                       )}
-                      <button
-                        onClick={() => resetPassword(member)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Reset Password"
-                      >
-                        <Lock size={18} />
-                      </button>
-                      <button
-                        onClick={() => openPermissionModal(member)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit Permissions"
-                      >
-                        <Edit size={18} />
-                      </button>
-                      <button
-                        onClick={() => deleteAccount(member)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Account"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {isMainAdmin(member.email) && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                          Main Admin
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

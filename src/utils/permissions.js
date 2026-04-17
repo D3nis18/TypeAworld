@@ -25,8 +25,8 @@ export const getMemberPermissions = async (email) => {
     if (result.success) {
       const member = result.data.find(m => m.email === email);
       if (member) {
-        // Admin gets all permissions by default
-        if (member.role === 'Admin' || email === 'denismwg4@gmail.com') {
+        // Admin or users with isAdmin permission get all permissions by default
+        if (member.role === 'Admin' || email === 'denismwg4@gmail.com' || member.permissions?.isAdmin) {
           return {
             canEditMinutes: true,
             canEditProjects: true,
@@ -43,6 +43,7 @@ export const getMemberPermissions = async (email) => {
             canManageDepartments: true,
             canManageCategories: true,
             canManageAccounts: true,
+            isAdmin: true,
             ...member.permissions
           };
         }
@@ -59,6 +60,12 @@ export const getMemberPermissions = async (email) => {
 // Check if user has a specific permission (sync version)
 export const hasPermission = (permissions, permissionKey) => {
   return permissions && permissions[permissionKey] === true;
+};
+
+// Check if user has admin access (by role or permission)
+export const hasAdminAccess = (role, permissions) => {
+  if (role === 'Admin') return true;
+  return permissions && permissions.isAdmin === true;
 };
 
 // Check if user can view minutes
