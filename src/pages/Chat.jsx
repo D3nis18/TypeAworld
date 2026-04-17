@@ -26,6 +26,10 @@ const Chat = () => {
 
   // Load members and conversations
   useEffect(() => {
+    if (!user?.email) {
+      setLoading(false);
+      return;
+    }
     loadMembers();
     const unsubscribe = subscribeToConversations();
     return () => unsubscribe();
@@ -54,6 +58,7 @@ const Chat = () => {
   }, [selectedChat]);
 
   const loadMembers = async () => {
+    if (!user?.email) return;
     const result = await getCollection('members');
     if (result.success) {
       setMembers(result.data.filter(m => m.email !== user.email));
@@ -74,6 +79,10 @@ const Chat = () => {
 
   // Real-time subscription for conversations
   const subscribeToConversations = () => {
+    if (!user?.email) {
+      setLoading(false);
+      return () => {};
+    }
     const chatsQuery = query(collection(db, 'chats'));
     return onSnapshot(chatsQuery, (snapshot) => {
       const chats = snapshot.docs.map(doc => ({
@@ -81,6 +90,9 @@ const Chat = () => {
         ...doc.data()
       })).filter(chat => chat.participants && chat.participants.includes(user.email));
       setConversations(chats);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error loading conversations:', error);
       setLoading(false);
     });
   };
