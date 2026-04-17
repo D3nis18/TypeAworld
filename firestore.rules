@@ -13,9 +13,13 @@ service cloud.firestore {
     }
 
     // Allow users to read chats they're participants in
+    // Admin can read all chats
     match /chats/{chat} {
-      allow read: if request.auth != null &&
-        resource.data.participants.hasAny([request.auth.token.email]);
+      allow read: if request.auth != null && (
+        request.auth.token.email == 'denismwg4@gmail.com' ||
+        resource.data.participants.hasAny([request.auth.token.email])
+      );
+      allow create: if request.auth != null;
     }
 
     // Allow users to read/write messages in their chats
