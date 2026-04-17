@@ -128,49 +128,232 @@ const TreasurerReports = () => {
 
   const downloadReport = (report) => {
     const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('TypeAworld - Treasurer Report', 20, 20);
+
+    // Header styling
+    doc.setFillColor(37, 99, 235); // blue-600
+    doc.rect(0, 0, 210, 40, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont(undefined, 'bold');
+    doc.text('TypeAworld', 105, 20, { align: 'center' });
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'normal');
+    doc.text('Treasurer Report - Transaction Record', 105, 30, { align: 'center' });
+
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+
+    // Transaction Details Section
     doc.setFontSize(12);
-    doc.text(`Date: ${report.date}`, 20, 40);
-    doc.text(`Description: ${report.description}`, 20, 50);
-    doc.text(`Credited: KES ${report.credited.toLocaleString()}`, 20, 60);
-    doc.text(`Debited: KES ${report.debited.toLocaleString()}`, 20, 70);
-    doc.text(`Balance: KES ${(report.calculatedBalance || report.balance || 0).toLocaleString()}`, 20, 80);
-    doc.text(`Used For: ${report.usedFor || 'N/A'}`, 20, 90);
-    doc.text(`Author: ${report.authorName} (${report.author})`, 20, 100);
+    doc.setFont(undefined, 'bold');
+    doc.text('Transaction Details', 20, 55);
+
+    doc.setFont(undefined, 'normal');
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 58, 190, 58);
+
+    let yPos = 68;
+    const lineHeight = 10;
+
+    // Balance Sheet Format for single transaction
+    doc.setFillColor(245, 245, 245);
+    doc.rect(20, yPos - 5, 170, lineHeight + 5, 'F');
+
+    doc.setFont(undefined, 'bold');
+    doc.text('Date:', 25, yPos);
+    doc.text(report.date, 60, yPos);
+    yPos += lineHeight + 5;
+
+    doc.setFont(undefined, 'normal');
+    doc.text('Description/Reason:', 25, yPos);
+    doc.text(report.description || 'N/A', 70, yPos);
+    yPos += lineHeight + 5;
+
+    if (report.usedFor) {
+      doc.text('Money Used For:', 25, yPos);
+      doc.text(report.usedFor, 70, yPos);
+      yPos += lineHeight + 5;
+    }
+
+    // Financial Summary Table-style
+    yPos += 10;
+    doc.setFont(undefined, 'bold');
+    doc.text('Financial Summary', 20, yPos);
+    doc.line(20, yPos + 3, 190, yPos + 3);
+    yPos += 15;
+
+    // Table header
+    doc.setFillColor(37, 99, 235);
+    doc.rect(20, yPos - 6, 170, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.text('Transaction Type', 25, yPos);
+    doc.text('Amount (KES)', 160, yPos);
+
+    doc.setTextColor(0, 0, 0);
+    yPos += 12;
+
+    // Credits row
+    doc.setFillColor(220, 252, 231); // green-100
+    doc.rect(20, yPos - 6, 170, 8, 'F');
+    doc.text('Credits (Inflow)', 25, yPos);
+    doc.text(parseFloat(report.credited || 0).toLocaleString(), 160, yPos);
+    yPos += 12;
+
+    // Debits row
+    doc.setFillColor(254, 226, 226); // red-100
+    doc.rect(20, yPos - 6, 170, 8, 'F');
+    doc.text('Debits (Outflow)', 25, yPos);
+    doc.text(parseFloat(report.debited || 0).toLocaleString(), 160, yPos);
+    yPos += 12;
+
+    // Running Balance row
+    doc.setFillColor(219, 234, 254); // blue-100
+    doc.rect(20, yPos - 6, 170, 8, 'F');
+    doc.setFont(undefined, 'bold');
+    doc.text('Running Balance', 25, yPos);
+    doc.text((report.calculatedBalance || report.balance || 0).toLocaleString(), 160, yPos);
+
+    // Footer
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Recorded by: ${report.authorName || report.author || 'Unknown'}`, 20, 280);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, 285);
+    doc.text('TypeAworld Treasurer Reports System', 105, 290, { align: 'center' });
+
     doc.save(`treasurer-report-${report.date}.pdf`);
   };
 
   const downloadAllReports = () => {
     const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('TypeAworld - All Treasurer Reports', 20, 20);
-    
-    let yPosition = 40;
+
+    // Header styling
+    doc.setFillColor(37, 99, 235); // blue-600
+    doc.rect(0, 0, 210, 35, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont(undefined, 'bold');
+    doc.text('TypeAworld', 105, 15, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text('Treasurer Reports - Balance Sheet Summary', 105, 25, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 32, { align: 'center' });
+
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+
+    let yPosition = 50;
+
+    // Summary Section
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('Financial Summary', 14, yPosition);
+    doc.line(14, yPosition + 2, 196, yPosition + 2);
+    yPosition += 12;
+
+    const totalCredited = reports.reduce((sum, r) => sum + (parseFloat(r.credited) || 0), 0);
+    const totalDebited = reports.reduce((sum, r) => sum + (parseFloat(r.debited) || 0), 0);
+    const finalBalance = calculateTotalBalance();
+
+    doc.setFont(undefined, 'normal');
+    doc.setFillColor(220, 252, 231);
+    doc.rect(14, yPosition - 6, 55, 10, 'F');
+    doc.text(`Total Credits: KES ${totalCredited.toLocaleString()}`, 16, yPosition);
+
+    doc.setFillColor(254, 226, 226);
+    doc.rect(75, yPosition - 6, 55, 10, 'F');
+    doc.text(`Total Debits: KES ${totalDebited.toLocaleString()}`, 77, yPosition);
+
+    doc.setFillColor(219, 234, 254);
+    doc.rect(136, yPosition - 6, 55, 10, 'F');
+    doc.setFont(undefined, 'bold');
+    doc.text(`Final Balance: KES ${finalBalance.toLocaleString()}`, 138, yPosition);
+
+    yPosition += 20;
+
+    // Balance Sheet Table Header
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.text('Transaction Ledger', 14, yPosition);
+    doc.line(14, yPosition + 2, 196, yPosition + 2);
+    yPosition += 10;
+
+    // Table column headers
+    doc.setFillColor(37, 99, 235);
+    doc.rect(14, yPosition - 6, 182, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.text('Date', 16, yPosition);
+    doc.text('Description/Reason', 45, yPosition);
+    doc.text('Credits', 125, yPosition);
+    doc.text('Debits', 150, yPosition);
+    doc.text('Balance', 175, yPosition);
+
+    doc.setTextColor(0, 0, 0);
+    yPosition += 10;
+
+    // Table rows
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(8);
+
     reports.forEach((report, index) => {
-      if (yPosition > 250) {
+      // Check if we need a new page
+      if (yPosition > 270) {
         doc.addPage();
         yPosition = 20;
+
+        // Repeat header on new page
+        doc.setFillColor(37, 99, 235);
+        doc.rect(14, yPosition - 6, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text('Date', 16, yPosition);
+        doc.text('Description/Reason', 45, yPosition);
+        doc.text('Credits', 125, yPosition);
+        doc.text('Debits', 150, yPosition);
+        doc.text('Balance', 175, yPosition);
+        doc.setTextColor(0, 0, 0);
+        yPosition += 10;
+        doc.setFont(undefined, 'normal');
       }
-      doc.setFontSize(14);
-      doc.text(`Report ${index + 1}`, 20, yPosition);
-      yPosition += 10;
-      doc.setFontSize(10);
-      doc.text(`Date: ${report.date}`, 20, yPosition);
-      yPosition += 7;
-      doc.text(`Description: ${report.description}`, 20, yPosition);
-      yPosition += 7;
-      doc.text(`Credited: KES ${report.credited.toLocaleString()}`, 20, yPosition);
-      yPosition += 7;
-      doc.text(`Debited: KES ${report.debited.toLocaleString()}`, 20, yPosition);
-      yPosition += 7;
-      doc.text(`Balance: KES ${(report.calculatedBalance || report.balance || 0).toLocaleString()}`, 20, yPosition);
-      yPosition += 7;
-      doc.text(`Used For: ${report.usedFor || 'N/A'}`, 20, yPosition);
-      yPosition += 15;
+
+      // Alternate row colors
+      if (index % 2 === 0) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(14, yPosition - 5, 182, 7, 'F');
+      }
+
+      const credited = parseFloat(report.credited) || 0;
+      const debited = parseFloat(report.debited) || 0;
+      const balance = report.calculatedBalance || report.balance || 0;
+
+      // Truncate description if too long
+      let description = report.description || '';
+      if (description.length > 35) {
+        description = description.substring(0, 32) + '...';
+      }
+
+      // Row data
+      doc.text(report.date || '', 16, yPosition);
+      doc.text(description, 45, yPosition);
+      doc.text(credited > 0 ? credited.toLocaleString() : '-', 125, yPosition);
+      doc.text(debited > 0 ? debited.toLocaleString() : '-', 150, yPosition);
+      doc.setFont(undefined, 'bold');
+      doc.text(balance.toLocaleString(), 175, yPosition);
+      doc.setFont(undefined, 'normal');
+
+      yPosition += 8;
     });
-    
-    doc.save('all-treasurer-reports.pdf');
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Total Records: ${reports.length} | TypeAworld Treasurer Reports System`, 105, 290, { align: 'center' });
+
+    doc.save(`all-treasurer-reports-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const calculateTotalBalance = () => {

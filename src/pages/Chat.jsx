@@ -22,6 +22,7 @@ const Chat = () => {
   const [chatType, setChatType] = useState('individual'); // 'individual', 'admin', 'group'
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   // Load members and conversations
   useEffect(() => {
@@ -114,9 +115,9 @@ const Chat = () => {
     }
 
     // Check if chat already exists
-    const existingChat = conversations.find(c => 
-      c.type === chatType && 
-      JSON.stringify(c.participants.sort()) === JSON.stringify(participants.sort())
+    const existingChat = conversations.find(c =>
+      c.type === chatType &&
+      JSON.stringify([...c.participants].sort()) === JSON.stringify([...participants].sort())
     );
 
     if (existingChat) {
@@ -201,10 +202,10 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex h-[calc(100vh-200px)] bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="h-[calc(100vh-64px)] md:max-w-7xl md:mx-auto md:px-4 md:py-4">
+        <div className="flex h-full md:h-[calc(100vh-120px)] bg-white md:rounded-lg md:shadow-lg overflow-hidden">
           {/* Sidebar - Conversations List */}
-          <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+          <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-gray-50 border-r border-gray-200 flex-col absolute md:relative z-10 h-full`}>
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Messages</h2>
@@ -240,7 +241,10 @@ const Chat = () => {
                 conversations.map(chat => (
                   <button
                     key={chat.id}
-                    onClick={() => setSelectedChat(chat)}
+                    onClick={() => {
+                      setSelectedChat(chat);
+                      setShowSidebar(false);
+                    }}
                     className={`w-full p-4 flex items-center gap-3 hover:bg-gray-100 transition-colors ${
                       selectedChat?.id === chat.id ? 'bg-primary-50 border-l-4 border-primary-600' : ''
                     }`}
@@ -264,12 +268,19 @@ const Chat = () => {
           </div>
 
           {/* Chat Area */}
-          <div className="flex-1 flex flex-col">
+          <div className={`flex-1 flex flex-col ${!showSidebar && selectedChat ? 'flex' : 'hidden md:flex'}`}>
             {selectedChat ? (
               <>
                 {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowSidebar(true)}
+                      className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                      title="Back to conversations"
+                    >
+                      <MessageCircle size={20} />
+                    </button>
                     <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                       {getChatAvatar(selectedChat)}
                     </div>
@@ -283,10 +294,10 @@ const Chat = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+                    <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg hidden sm:block">
                       <Phone size={20} />
                     </button>
-                    <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+                    <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg hidden sm:block">
                       <Video size={20} />
                     </button>
                     <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
@@ -309,7 +320,7 @@ const Chat = () => {
                       
                       return (
                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[70%] ${isMe ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800'} rounded-lg px-4 py-2`}>
+                          <div className={`max-w-[85%] sm:max-w-[70%] ${isMe ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800'} rounded-lg px-3 sm:px-4 py-2`}>
                             {showSender && !isMe && (
                               <p className="text-xs font-medium mb-1 opacity-75">
                                 {msg.anonymous ? (
@@ -321,7 +332,7 @@ const Chat = () => {
                                 )}
                               </p>
                             )}
-                            <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                            <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                             <p className={`text-xs mt-1 ${isMe ? 'text-primary-200' : 'text-gray-500'}`}>
                               {format(new Date(msg.createdAt), 'h:mm a')}
                             </p>
@@ -334,10 +345,10 @@ const Chat = () => {
                 </div>
 
                 {/* Message Input */}
-                <div className="p-4 border-t border-gray-200">
+                <div className="p-2 sm:p-4 border-t border-gray-200">
                   <form onSubmit={sendMessage} className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <button type="button" className="hidden sm:block p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
                         <Paperclip size={20} />
                       </button>
                       <textarea
@@ -355,45 +366,46 @@ const Chat = () => {
                             }
                           }
                         }}
-                        placeholder="Type a message... (Shift+Enter for new line)"
-                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none min-h-[44px] max-h-[120px]"
+                        placeholder="Type a message..."
+                        className="flex-1 p-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none min-h-[40px] sm:min-h-[44px] max-h-[100px] sm:max-h-[120px]"
                         rows={1}
                       />
-                      <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+                      <button type="button" className="hidden sm:block p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
                         <Smile size={20} />
                       </button>
                       <button
                         type="submit"
                         disabled={!newMessage.trim() || sending}
-                        className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                        className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex-shrink-0"
                       >
                         {sending ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (
-                          <Send size={20} />
+                          <Send size={18} className="sm:w-5 sm:h-5" />
                         )}
                       </button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <label className="flex items-center gap-1 sm:gap-2 text-gray-600 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={anonymous}
                           onChange={(e) => setAnonymous(e.target.checked)}
-                          className="w-4 h-4 text-primary-600 rounded"
+                          className="w-3 h-3 sm:w-4 sm:h-4 text-primary-600 rounded"
                         />
                         {anonymous ? (
                           <span className="flex items-center gap-1">
-                            <EyeOff size={14} /> Send anonymously
+                            <EyeOff size={12} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Send anonymously</span><span className="sm:hidden">Anonymous</span>
                           </span>
                         ) : (
                           <span className="flex items-center gap-1">
-                            <Eye size={14} /> Show my identity
+                            <Eye size={12} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Show my identity</span><span className="sm:hidden">Visible</span>
                           </span>
                         )}
                       </label>
-                      <span className={`text-xs ${newMessage.length > MAX_MESSAGE_LENGTH * 0.9 ? 'text-orange-500' : 'text-gray-400'}`}>
-                        {newMessage.length}/{MAX_MESSAGE_LENGTH} • Shift+Enter for new line • Enter to send
+                      <span className={`${newMessage.length > MAX_MESSAGE_LENGTH * 0.9 ? 'text-orange-500' : 'text-gray-400'}`}>
+                        {newMessage.length}/{MAX_MESSAGE_LENGTH}
+                        <span className="hidden sm:inline"> • Shift+Enter for new line • Enter to send</span>
                       </span>
                     </div>
                   </form>
@@ -401,17 +413,17 @@ const Chat = () => {
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <MessageCircle size={64} className="mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <div className="text-center px-4">
+                  <MessageCircle size={48} className="mx-auto mb-4 text-gray-300 md:w-16 md:h-16" />
+                  <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">
                     Select a conversation
                   </h3>
-                  <p className="text-gray-500 mb-4">
+                  <p className="text-sm md:text-base text-gray-500 mb-4">
                     Choose a chat from the sidebar or start a new one
                   </p>
                   <button
                     onClick={() => setShowNewChat(true)}
-                    className="btn-primary"
+                    className="btn-primary text-sm md:text-base"
                   >
                     Start New Chat
                   </button>
