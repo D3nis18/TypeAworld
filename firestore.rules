@@ -6,21 +6,26 @@ service cloud.firestore {
     match /allowedEmails/{email} {
       allow read: if true;
     }
-    
+
+    // Allow users to read/write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Allow users to read chats they're participants in
     match /chats/{chat} {
-      allow read: if request.auth != null && 
+      allow read: if request.auth != null &&
         resource.data.participants.hasAny([request.auth.token.email]);
     }
-    
+
     // Allow users to read/write messages in their chats
     match /messages/{message} {
       allow read, create: if request.auth != null;
     }
-    
-    // Allow anyone to read members for login validation
+
+    // Allow authenticated users to read members
     match /members/{member} {
-      allow read: if true;
+      allow read: if request.auth != null;
     }
   }
 }
