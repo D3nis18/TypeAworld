@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 
 const Chat = () => {
-  const { role, user, displayName } = useAuth();
+  const { role, user, displayName, loading: authLoading } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -24,8 +24,9 @@ const Chat = () => {
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [showSidebar, setShowSidebar] = useState(true);
 
-  // Load members and conversations
+  // Wait for auth to load first, then load chat data
   useEffect(() => {
+    if (authLoading) return; // Wait for auth
     if (!user?.email) {
       setLoading(false);
       return;
@@ -33,7 +34,7 @@ const Chat = () => {
     loadMembers();
     const unsubscribe = subscribeToConversations();
     return () => unsubscribe();
-  }, [user]);
+  }, [user, authLoading]);
 
   // Subscribe to messages for selected chat
   useEffect(() => {
@@ -205,10 +206,12 @@ const Chat = () => {
     return <User size={20} className="text-primary-600" />;
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-gray-500">
+          {authLoading ? 'Authenticating...' : 'Loading chat...'}
+        </div>
       </div>
     );
   }

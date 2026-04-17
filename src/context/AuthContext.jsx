@@ -25,26 +25,30 @@ export const AuthProvider = ({ children }) => {
     }
 
     let unsubscribe = () => {};
-    
+
     try {
       unsubscribe = onAuthStateChange(async (user) => {
         setUser(user);
-        
+
         if (user) {
-          // Get user role from Firestore
-          const userRole = await getUserRole(user.uid);
-          setRole(userRole);
-          
-          // Update user last login
-          await createOrUpdateUser(user.uid, {
+          // Set default role immediately for faster UI
+          setRole('Member');
+          setLoading(false);
+
+          // Load actual role and update user in background (non-blocking)
+          getUserRole(user.uid).then(userRole => {
+            if (userRole) setRole(userRole);
+          }).catch(() => {});
+
+          // Update last login in background (non-blocking)
+          createOrUpdateUser(user.uid, {
             email: user.email,
             lastLogin: new Date().toISOString()
-          });
+          }).catch(() => {});
         } else {
           setRole(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       });
     } catch (error) {
       console.error('Auth initialization error:', error);
