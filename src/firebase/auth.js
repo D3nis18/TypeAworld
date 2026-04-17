@@ -39,17 +39,28 @@ export const signIn = async (email, password) => {
 
           // Check if initial password matches
           if (memberData.initialPassword === password) {
-            // Create Firebase Auth account for member (use lowercase email)
-            const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+            try {
+              // Create Firebase Auth account for member (use lowercase email)
+              const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
 
-            // Update member record to mark password as set
-            await updateDoc(doc(db, 'members', memberDoc.id), {
-              passwordSet: true,
-              uid: userCredential.user.uid,
-              email: normalizedEmail // Ensure email is lowercase in members record
-            });
+              // Update member record to mark password as set
+              await updateDoc(doc(db, 'members', memberDoc.id), {
+                passwordSet: true,
+                uid: userCredential.user.uid,
+                email: normalizedEmail // Ensure email is lowercase in members record
+              });
 
-            return { success: true, user: userCredential.user, message: 'Account created successfully. Welcome!' };
+              return { success: true, user: userCredential.user, message: 'Account created successfully. Welcome!' };
+            } catch (createError) {
+              if (createError.code === 'auth/email-already-in-use') {
+                // Account already exists, user should use their Firebase password
+                return {
+                  success: false,
+                  error: 'Your account already exists. Please use your Firebase password (the one you set when you first logged in), not the initial password. If you forgot your password, contact the admin to reset it.'
+                };
+              }
+              throw createError;
+            }
           }
         }
       }
