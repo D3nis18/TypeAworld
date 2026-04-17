@@ -160,7 +160,7 @@ export const createOrUpdateUser = async (uid, userData) => {
       if (membersSnapshot.empty) {
         // Admin doesn't have a member record - create one with full permissions
         await addDoc(collection(db, 'members'), {
-          name: userData.name || 'Admin',
+          name: userData.name || 'Denis',
           surname: userData.surname || 'User',
           email: userData.email.toLowerCase(),
           contact: userData.contact || '',

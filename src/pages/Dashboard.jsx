@@ -16,12 +16,14 @@ const Dashboard = () => {
   });
   const [editingReminder, setEditingReminder] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     loadProjects();
     loadDepartmentPosts();
     loadMeetingReminder();
-  }, []);
+    loadUserName();
+  }, [user]);
 
   const loadProjects = async () => {
     const result = await getCollection('projects');
@@ -45,6 +47,20 @@ const Dashboard = () => {
     const result = await getCollection('meetingReminder');
     if (result.success && result.data.length > 0) {
       setMeetingReminder(result.data[0]);
+    }
+  };
+
+  const loadUserName = async () => {
+    if (user?.email) {
+      const result = await getCollection('members');
+      if (result.success) {
+        const member = result.data.find(m => m.email === user.email);
+        if (member) {
+          setUserName(`${member.name} ${member.surname || ''}`.trim());
+        } else {
+          setUserName(user.email.split('@')[0]);
+        }
+      }
     }
   };
 
@@ -72,7 +88,7 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome, {user?.email?.split('@')[0]}!
+            Welcome, {userName || user?.email?.split('@')[0]}!
           </h1>
           <p className="text-gray-600 mt-1">
             You are logged in as <span className="font-semibold text-primary-600">{role}</span>
