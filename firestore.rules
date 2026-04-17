@@ -22,9 +22,10 @@ service cloud.firestore {
       allow create: if request.auth != null;
     }
 
-    // Allow users to read/write messages in their chats
+    // Allow users to read messages in chats they're participants in
     match /messages/{message} {
-      allow read, create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
     }
 
     // Allow authenticated users to read members

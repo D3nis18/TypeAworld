@@ -158,7 +158,7 @@ const Chat = () => {
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || sending) return;
-    
+
     setSending(true);
 
     const messageData = {
@@ -171,10 +171,19 @@ const Chat = () => {
       read: false
     };
 
-    await addDocument('messages', messageData);
-    setNewMessage('');
-    setAnonymous(false);
-    setSending(false);
+    console.log('Sending message:', messageData);
+    const result = await addDocument('messages', messageData);
+    console.log('Message send result:', result);
+
+    if (result.success) {
+      setNewMessage('');
+      setAnonymous(false);
+      setSending(false);
+    } else {
+      console.error('Failed to send message:', result.error);
+      setSending(false);
+      alert('Failed to send message: ' + result.error);
+    }
 
     // Update chat last message
     // await updateDocument('chats', selectedChat.id, {
