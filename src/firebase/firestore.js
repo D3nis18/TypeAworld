@@ -143,8 +143,12 @@ export const createOrUpdateUser = async (uid, userData) => {
       updatedAt: new Date().toISOString()
     };
     
-    // Always set admin email as Admin
-    if (userData.email === 'denismwg4@gmail.com') {
+    // Normalize email to lowercase
+    const normalizedEmail = userData.email?.toLowerCase().trim();
+    dataToSet.email = normalizedEmail;
+
+    // Always set admin email as Admin (case-insensitive check)
+    if (normalizedEmail === 'denismwg4@gmail.com') {
       dataToSet.role = 'Admin';
     } else if (!userDoc.exists() || !userDoc.data().role) {
       dataToSet.role = 'Member';
@@ -153,8 +157,8 @@ export const createOrUpdateUser = async (uid, userData) => {
     await setDoc(userRef, dataToSet, { merge: true });
     
     // Also ensure Admin has a member record so they appear in members list and can chat
-    if (userData.email === 'denismwg4@gmail.com') {
-      const membersQuery = query(collection(db, 'members'), where('email', '==', userData.email.toLowerCase()));
+    if (normalizedEmail === 'denismwg4@gmail.com') {
+      const membersQuery = query(collection(db, 'members'), where('email', '==', normalizedEmail));
       const membersSnapshot = await getDocs(membersQuery);
       
       if (membersSnapshot.empty) {
@@ -162,7 +166,7 @@ export const createOrUpdateUser = async (uid, userData) => {
         await addDoc(collection(db, 'members'), {
           name: userData.name || 'Denis',
           surname: userData.surname || 'User',
-          email: userData.email.toLowerCase(),
+          email: normalizedEmail,
           contact: userData.contact || '',
           position: 'Administrator',
           role: 'Admin',

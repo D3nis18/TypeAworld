@@ -55,10 +55,11 @@ export const getAllowedEmails = () => {
   return cachedAllowedEmails || DEFAULT_ALLOWED_EMAILS;
 };
 
-// Check if email is allowed
+// Check if email is allowed (case-insensitive comparison)
 export const isEmailAllowed = async (email) => {
   const emails = await fetchAllowedEmails();
-  return emails.includes(email.toLowerCase());
+  const normalizedEmail = email.toLowerCase().trim();
+  return emails.some(e => e.toLowerCase().trim() === normalizedEmail);
 };
 
 // For backward compatibility

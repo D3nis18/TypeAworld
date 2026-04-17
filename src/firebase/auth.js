@@ -28,25 +28,27 @@ export const signIn = async (email, password) => {
     } catch (signInError) {
       // If sign in fails, check if this is first-time login with initial password
       if (signInError.code === 'auth/invalid-credential' || signInError.code === 'auth/user-not-found') {
-        // Check if member exists with initial password
-        const membersQuery = query(collection(db, 'members'), where('email', '==', email.toLowerCase()));
+        // Check if member exists with initial password (case-insensitive)
+        const normalizedEmail = email.toLowerCase().trim();
+        const membersQuery = query(collection(db, 'members'), where('email', '==', normalizedEmail));
         const membersSnapshot = await getDocs(membersQuery);
-        
+
         if (!membersSnapshot.empty) {
           const memberDoc = membersSnapshot.docs[0];
           const memberData = memberDoc.data();
-          
+
           // Check if initial password matches
           if (memberData.initialPassword === password) {
-            // Create Firebase Auth account for member
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            
+            // Create Firebase Auth account for member (use lowercase email)
+            const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+
             // Update member record to mark password as set
             await updateDoc(doc(db, 'members', memberDoc.id), {
               passwordSet: true,
-              uid: userCredential.user.uid
+              uid: userCredential.user.uid,
+              email: normalizedEmail // Ensure email is lowercase in members record
             });
-            
+
             return { success: true, user: userCredential.user, message: 'Account created successfully. Welcome!' };
           }
         }
