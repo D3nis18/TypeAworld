@@ -32,11 +32,18 @@ const TreasurerReports = () => {
   const canDeleteReport = role === 'Admin' || canDeleteTreasurerReports(role, memberPermissions);
 
   useEffect(() => {
-    // Use real-time subscription instead of one-time load
-    const unsubscribe = subscribeToReports();
+    // First try to load via API (always works), then subscribe for real-time updates
+    loadReports();
     // Load permissions for all non-Admin users
     if (role && role !== 'Admin' && user) {
       loadMemberPermissions();
+    }
+    // Try real-time subscription (may fail due to permissions)
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = subscribeToReports();
+    } catch (err) {
+      console.log('Real-time subscription not available, using regular load');
     }
     return () => unsubscribe();
   }, [role, user]);
@@ -69,16 +76,31 @@ const TreasurerReports = () => {
 
   // Real-time subscription for live updates to all members
   const subscribeToReports = () => {
-    const reportsQuery = query(collection(db, 'treasurerReports'), orderBy('date', 'asc'));
-    return onSnapshot(reportsQuery, (snapshot) => {
-      const reportsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      const withBalance = calculateBalances(reportsData);
-      setReports(withBalance);
+    try {
+      const reportsQuery = query(collection(db, 'treasurerReports'), orderBy('date', 'asc'));
+      return onSnapshot(reportsQuery, (snapshot) => {
+        const reportsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        const withBalance = calculateBalances(reportsData);
+        setReports(withBalance);
+        setLoading(false);
+      }, (error) => {
+        console.error('Error loading reports:', error);
+        // Handle permission errors gracefully
+        if (error.code === 'permission-denied') {
+          setError('Access denied. Please check your permissions or contact admin.');
+        }
+        setLoading(false);
+      });
+    } catch (error) {
+      console.error('Error setting up subscription:', error);
       setLoading(false);
-    });
+      // Fallback to regular load
+      loadReports();
+      return () => {};
+    }
   };
 
   const handleSubmit = async (e) => {

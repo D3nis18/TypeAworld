@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Download, FileText, BookOpen, Edit, Save, X, Plus, Building2, Trash2, Image as ImageIcon } from 'lucide-react';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { getMemberPermissions, canManageDepartments } from '../utils/permissions';
 import { jsPDF } from 'jspdf';
 
 const CompanyProfile = () => {
@@ -10,10 +9,6 @@ const CompanyProfile = () => {
   const [acts, setActs] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [memberPermissions, setMemberPermissions] = useState({
-    canEditCompanyProfile: false,
-    canManageDepartments: false
-  });
   const [editingHistory, setEditingHistory] = useState(false);
   const [editingObjects, setEditingObjects] = useState(false);
   const [showDepartmentForm, setShowDepartmentForm] = useState(false);
@@ -27,8 +22,11 @@ const CompanyProfile = () => {
   const [departmentForm, setDepartmentForm] = useState({
     name: '',
     description: '',
-    head: ''
+    head: '',
+    members: []
   });
+  const [allMembers, setAllMembers] = useState([]);
+  const [showDepartmentMembers, setShowDepartmentMembers] = useState(null);
   const [postForm, setPostForm] = useState({
     title: '',
     content: '',
@@ -40,23 +38,15 @@ const CompanyProfile = () => {
     content: ''
   });
   
-  const canDownload = role === 'Admin' || role === 'Secretary';
-  const canEdit = role === 'Admin' || memberPermissions.canEditCompanyProfile;
+  // Only admins can download, edit, or manage company documents
+  const canDownload = role === 'Admin';
 
   useEffect(() => {
     loadCompanyInfo();
     loadActs();
     loadDepartments();
-    if (role && role !== 'Admin' && user) {
-      loadMemberPermissions();
-    }
+    loadAllMembers();
   }, [role, user]);
-
-  const loadMemberPermissions = async () => {
-    const { getMemberPermissions } = await import('../utils/permissions');
-    const permissions = await getMemberPermissions(user.email);
-    setMemberPermissions(permissions);
-  };
 
   const loadCompanyInfo = async () => {
     const historyResult = await getCollection('companyHistory');
@@ -89,6 +79,13 @@ const CompanyProfile = () => {
     setLoading(false);
   };
 
+  const loadAllMembers = async () => {
+    const result = await getCollection('members');
+    if (result.success) {
+      setAllMembers(result.data);
+    }
+  };
+
   const loadDepartments = async () => {
     const result = await getCollection('departments');
     if (result.success) {
@@ -108,10 +105,20 @@ const CompanyProfile = () => {
     }
   };
 
+  const toggleDepartmentMember = (dept, memberEmail) => {
+    const currentMembers = dept.members || [];
+    const updatedMembers = currentMembers.includes(memberEmail)
+      ? currentMembers.filter(m => m !== memberEmail)
+      : [...currentMembers, memberEmail];
+    updateDocument('departments', dept.id, { members: updatedMembers });
+    loadDepartments();
+  };
+
   const handleDepartmentSubmit = async (e) => {
     e.preventDefault();
     const data = {
       ...departmentForm,
+      members: departmentForm.members || [],
       author: user.email,
       authorName: user.email.split('@')[0],
       createdAt: new Date().toISOString()
@@ -127,7 +134,7 @@ const CompanyProfile = () => {
       await addDocument('departments', data);
     }
 
-    setDepartmentForm({ name: '', description: '', head: '' });
+    setDepartmentForm({ name: '', description: '', head: '', members: [] });
     setShowDepartmentForm(false);
     loadDepartments();
   };
@@ -136,7 +143,8 @@ const CompanyProfile = () => {
     setDepartmentForm({
       name: dept.name,
       description: dept.description,
-      head: dept.head
+      head: dept.head,
+      members: dept.members || []
     });
     setEditingDepartment(dept);
     setShowDepartmentForm(true);
@@ -299,7 +307,7 @@ const CompanyProfile = () => {
               <h2 className="text-xl font-bold text-gray-900">Company History</h2>
             </div>
             <div className="flex gap-2">
-              {canEdit && !editingHistory && (
+              {role === 'Admin' && !editingHistory && (
                 <button
                   onClick={() => { setEditingHistory(true); setTempHistory(companyHistory); }}
                   className="btn-secondary flex items-center gap-2"
@@ -357,7 +365,7 @@ const CompanyProfile = () => {
               <h2 className="text-xl font-bold text-gray-900">Company Objects</h2>
             </div>
             <div className="flex gap-2">
-              {canEdit && !editingObjects && (
+              {role === 'Admin' && !editingObjects && (
                 <button
                   onClick={() => { setEditingObjects(true); setTempObjects([...companyObjects]); }}
                   className="btn-secondary flex items-center gap-2"
@@ -440,7 +448,7 @@ const CompanyProfile = () => {
               <Building2 className="text-primary-600" size={24} />
               <h2 className="text-xl font-bold text-gray-900">Departments</h2>
             </div>
-            {canManageDepartments(role, memberPermissions) && (
+            {role === 'Admin' && (
               <button
                 onClick={() => setShowDepartmentForm(true)}
                 className="btn-primary flex items-center gap-2"
@@ -487,6 +495,32 @@ const CompanyProfile = () => {
                     placeholder="Brief description of the department"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Department Members <span className="text-gray-400">(Admin Only)</span></label>
+                  <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-2">
+                    {allMembers.length === 0 ? (
+                      <p className="text-sm text-gray-500">Loading members...</p>
+                    ) : (
+                      allMembers.map(member => (
+                        <label key={member.id} className="flex items-center gap-2 p-1 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(departmentForm.members || []).includes(member.email)}
+                            onChange={() => {
+                              const current = departmentForm.members || [];
+                              const updated = current.includes(member.email)
+                                ? current.filter(m => m !== member.email)
+                                : [...current, member.email];
+                              setDepartmentForm({ ...departmentForm, members: updated });
+                            }}
+                            className="rounded text-primary-600"
+                          />
+                          <span className="text-sm">{member.name} {member.surname} ({member.email})</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <button type="submit" className="btn-primary">
                     {editingDepartment ? 'Update' : 'Add'} Department
@@ -496,7 +530,7 @@ const CompanyProfile = () => {
                     onClick={() => {
                       setShowDepartmentForm(false);
                       setEditingDepartment(null);
-                      setDepartmentForm({ name: '', description: '', head: '' });
+                      setDepartmentForm({ name: '', description: '', head: '', members: [] });
                     }}
                     className="btn-secondary"
                   >
@@ -524,12 +558,27 @@ const CompanyProfile = () => {
                       {dept.description && (
                         <p className="text-sm text-gray-600 mt-2">{dept.description}</p>
                       )}
+                      {dept.members && dept.members.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs font-medium text-gray-500 mb-1">Members:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {dept.members.map(email => {
+                              const member = allMembers.find(m => m.email === email);
+                              return (
+                                <span key={email} className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs">
+                                  {member ? `${member.name} ${member.surname}` : email}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       <p className="text-xs text-gray-400 mt-2">
                         Added by {dept.authorName} on {new Date(dept.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex gap-2 ml-4">
-                      {canManageDepartments(role, memberPermissions) && (
+                      {role === 'Admin' && (
                         <>
                           <button
                             onClick={() => handleEditDepartment(dept)}
@@ -545,15 +594,15 @@ const CompanyProfile = () => {
                           >
                             <Trash2 size={18} />
                           </button>
+                          <button
+                            onClick={() => handleAddPost(dept)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                            title="Add Post"
+                          >
+                            <Plus size={18} />
+                          </button>
                         </>
                       )}
-                      <button
-                        onClick={() => handleAddPost(dept)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                        title="Add Post"
-                      >
-                        <Plus size={18} />
-                      </button>
                     </div>
                   </div>
 
@@ -685,7 +734,7 @@ const CompanyProfile = () => {
               <FileText className="text-primary-600" size={24} />
               <h2 className="text-xl font-bold text-gray-900">Company Acts & Articles</h2>
             </div>
-            {canEdit && (
+            {role === 'Admin' && (
               <button
                 onClick={() => setShowActForm(!showActForm)}
                 className="btn-primary flex items-center gap-2"
@@ -697,7 +746,7 @@ const CompanyProfile = () => {
           </div>
 
           {/* Admin Form to Add Act/Article */}
-          {showActForm && canEdit && (
+          {showActForm && role === 'Admin' && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="text-lg font-semibold mb-3">Add New Document</h3>
               <form onSubmit={handleActSubmit} className="space-y-4">
@@ -760,7 +809,7 @@ const CompanyProfile = () => {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {canDownload && (
+                      {role === 'Admin' && (
                         <button
                           onClick={() => downloadAct(act)}
                           className="btn-secondary flex items-center gap-2"
@@ -769,7 +818,7 @@ const CompanyProfile = () => {
                           Download
                         </button>
                       )}
-                      {canEdit && (
+                      {role === 'Admin' && (
                         <button
                           onClick={() => handleDeleteAct(act.id)}
                           className="btn-danger p-2"

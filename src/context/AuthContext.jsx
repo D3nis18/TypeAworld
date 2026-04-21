@@ -61,9 +61,12 @@ export const AuthProvider = ({ children }) => {
   // Helper to get display name for user
   const getDisplayName = () => {
     if (!user?.email) return 'User';
-    // Admin account
+    // Admin accounts
     if (user.email.toLowerCase() === 'denismwg4@gmail.com') {
       return 'Denis Mwangi';
+    }
+    if (user.email.toLowerCase() === 'bykiptoo@gmail.com') {
+      return 'Kiptoo';
     }
     // Default: use email username
     return user.email.split('@')[0];

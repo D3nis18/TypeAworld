@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Mail, FileText, Briefcase, Trash2, Plus, X, Edit, Lock, Unlock, Save } from 'lucide-react';
+import { Shield, Users, Mail, FileText, Briefcase, Trash2, Plus, X, Edit, Lock, Unlock, Save, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { fetchAllowedEmails, getAllowedEmails } from '../firebase/config';
 import { auth } from '../firebase/config';
@@ -11,6 +12,7 @@ const AdminPortal = () => {
   const [allowedEmails, setAllowedEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(true);
+  const [treasurerReports, setTreasurerReports] = useState([]);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberPermissions, setMemberPermissions] = useState({
@@ -70,6 +72,11 @@ const AdminPortal = () => {
     if (result.success) {
       setMembers(result.data);
     }
+    // Load treasurer reports
+    const reportsResult = await getCollection('treasurerReports');
+    if (reportsResult.success) {
+      setTreasurerReports(reportsResult.data);
+    }
     // Load allowed emails from Firestore
     const emails = await fetchAllowedEmails();
     setAllowedEmails(emails);
@@ -99,8 +106,8 @@ const AdminPortal = () => {
   };
 
   const deleteMember = async (id, email) => {
-    if (isMainAdmin(email)) {
-      alert('Main admin cannot be deleted.');
+    if (isMainAdmin(email) || isAssistantAdmin(email)) {
+      alert('Admin accounts cannot be deleted.');
       return;
     }
     if (window.confirm('Are you sure you want to delete this member?')) {
@@ -110,11 +117,12 @@ const AdminPortal = () => {
   };
 
   const isMainAdmin = (email) => email === 'denismwg4@gmail.com';
+  const isAssistantAdmin = (email) => email === 'bykiptoo@gmail.com';
 
   const openPermissionModal = (member) => {
-    // Prevent editing main admin's permissions
-    if (isMainAdmin(member.email)) {
-      alert('Main admin permissions cannot be edited.');
+    // Prevent editing admin permissions
+    if (isMainAdmin(member.email) || isAssistantAdmin(member.email)) {
+      alert('Admin permissions cannot be edited.');
       return;
     }
     setSelectedMember(member);
@@ -181,8 +189,8 @@ const AdminPortal = () => {
   };
 
   const suspendAccount = async (member) => {
-    if (isMainAdmin(member.email)) {
-      alert('Main admin cannot be suspended.');
+    if (isMainAdmin(member.email) || isAssistantAdmin(member.email)) {
+      alert('Admin accounts cannot be suspended.');
       return;
     }
     if (window.confirm(`Are you sure you want to suspend ${member.name} ${member.surname || ''}?`)) {
@@ -211,8 +219,8 @@ const AdminPortal = () => {
   };
 
   const deleteAccount = async (member) => {
-    if (isMainAdmin(member.email)) {
-      alert('Main admin cannot be deleted.');
+    if (isMainAdmin(member.email) || isAssistantAdmin(member.email)) {
+      alert('Admin accounts cannot be deleted.');
       return;
     }
     if (window.confirm(`Are you sure you want to delete ${member.name} ${member.surname || ''}'s account? This cannot be undone.`)) {
@@ -271,6 +279,16 @@ const AdminPortal = () => {
           >
             Manage Content
           </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-3 font-medium transition-colors ${
+              activeTab === 'analytics'
+                ? 'text-primary-600 border-b-2 border-primary-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Analytics
+          </button>
         </div>
 
         {/* Members Management Tab */}
@@ -315,7 +333,7 @@ const AdminPortal = () => {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      {!isMainAdmin(member.email) && (
+                      {!(isMainAdmin(member.email) || isAssistantAdmin(member.email)) && (
                         <>
                           {member.suspended ? (
                             <button
@@ -357,9 +375,9 @@ const AdminPortal = () => {
                           </button>
                         </>
                       )}
-                      {isMainAdmin(member.email) && (
+                      {(isMainAdmin(member.email) || isAssistantAdmin(member.email)) && (
                         <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                          Main Admin
+                          {isMainAdmin(member.email) ? 'Main Admin' : 'Admin'}
                         </span>
                       )}
                     </div>
@@ -532,6 +550,133 @@ const AdminPortal = () => {
             </div>
           </div>
         )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-4">
+              <BarChart3 className="text-primary-600" size={32} />
+              <h2 className="text-2xl font-bold text-gray-900">Admin Analytics</h2>
+            </div>
+            <AnalyticsCharts members={members} treasurerReports={treasurerReports} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Analytics Charts Component
+const AnalyticsCharts = ({ members, treasurerReports }) => {
+  const availablePositions = ['Founder', 'Chairman', 'Secretary', 'Treasurer', 'Member', 'Custom'];
+  const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'];
+
+  const positionData = availablePositions.map(pos => ({
+    position: pos,
+    count: members.filter(m => m.position === pos).length
+  }));
+
+  // Calculate treasurer stats
+  const totalIncome = treasurerReports
+    .filter(r => r.type === 'income')
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+  const totalExpenses = treasurerReports
+    .filter(r => r.type === 'expense')
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+  const currentBalance = totalIncome - totalExpenses;
+  const totalTransactions = treasurerReports.length;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="card">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Members by Position</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={positionData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="position" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="count" fill="#0ea5e9" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="card">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Position Distribution</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={positionData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ position, count }) => `${position}: ${count}`}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="count"
+            >
+              {positionData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Treasurer Stats */}
+      <div className="card lg:col-span-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Treasurer Financial Overview</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-green-50 rounded-lg text-center">
+            <p className="text-2xl font-bold text-green-600">KES {totalIncome.toLocaleString()}</p>
+            <p className="text-sm text-gray-600">Total Income</p>
+          </div>
+          <div className="p-4 bg-red-50 rounded-lg text-center">
+            <p className="text-2xl font-bold text-red-600">KES {totalExpenses.toLocaleString()}</p>
+            <p className="text-sm text-gray-600">Total Expenses</p>
+          </div>
+          <div className="p-4 bg-blue-50 rounded-lg text-center">
+            <p className={`text-2xl font-bold ${currentBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              KES {currentBalance.toLocaleString()}
+            </p>
+            <p className="text-sm text-gray-600">Current Balance</p>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg text-center">
+            <p className="text-2xl font-bold text-purple-600">{totalTransactions}</p>
+            <p className="text-sm text-gray-600">Total Transactions</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Member Summary */}
+      <div className="card lg:col-span-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Member Overview</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-blue-50 rounded-lg text-center">
+            <p className="text-3xl font-bold text-blue-600">{members.length}</p>
+            <p className="text-sm text-gray-600">Total Members</p>
+          </div>
+          <div className="p-4 bg-indigo-50 rounded-lg text-center">
+            <p className="text-3xl font-bold text-indigo-600">
+              {members.filter(m => m.position === 'Treasurer').length}
+            </p>
+            <p className="text-sm text-gray-600">Treasurers</p>
+          </div>
+          <div className="p-4 bg-teal-50 rounded-lg text-center">
+            <p className="text-3xl font-bold text-teal-600">
+              {members.filter(m => m.position === 'Secretary').length}
+            </p>
+            <p className="text-sm text-gray-600">Secretaries</p>
+          </div>
+          <div className="p-4 bg-orange-50 rounded-lg text-center">
+            <p className="text-3xl font-bold text-orange-600">
+              {members.filter(m => m.position === 'Chairman' || m.position === 'Founder').length}
+            </p>
+            <p className="text-sm text-gray-600">Leadership</p>
+          </div>
+        </div>
       </div>
     </div>
   );

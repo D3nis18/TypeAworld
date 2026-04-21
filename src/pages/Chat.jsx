@@ -32,6 +32,9 @@ const Chat = () => {
       setLoading(false);
       return;
     }
+    // Clear any previous errors when user is authenticated
+    setError(null);
+    setLoading(true);
     loadMembers();
     const unsubscribe = subscribeToConversations();
     return () => unsubscribe();
@@ -41,19 +44,41 @@ const Chat = () => {
   useEffect(() => {
     if (!selectedChat) return;
 
+    console.log('Subscribing to messages for chat:', selectedChat.id);
+
+    // First load via API as fallback
+    loadMessages(selectedChat.id);
+
+    // Then try real-time subscription (without orderBy to avoid index requirement)
     const messagesQuery = query(
       collection(db, 'messages'),
-      where('chatId', '==', selectedChat.id),
-      orderBy('createdAt', 'asc')
+      where('chatId', '==', selectedChat.id)
     );
 
     const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+      console.log('Messages snapshot received, count:', snapshot.docs.length);
       const msgs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setMessages(msgs);
+      // Sort by createdAt in JavaScript
+      const sorted = msgs.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateA - dateB;
+      });
+      console.log('Processed messages:', sorted);
+      setMessages(sorted);
       scrollToBottom();
+    }, (error) => {
+      console.error('Error loading messages:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      // Fallback to API if real-time fails
+      if (error.code === 'failed-precondition' || error.code === 'permission-denied') {
+        console.log('Falling back to API load for messages');
+        loadMessages(selectedChat.id);
+      }
     });
 
     return () => unsubscribe();
@@ -79,28 +104,64 @@ const Chat = () => {
     setLoading(false);
   };
 
+  // Load messages via API (fallback when real-time fails)
+  const loadMessages = async (chatId) => {
+    if (!chatId) return;
+    console.log('Loading messages via API for chat:', chatId);
+    // Don't use orderBy to avoid requiring a composite index
+    // Filter and sort in JavaScript instead
+    const result = await getCollection('messages', [where('chatId', '==', chatId)], null, null);
+    if (result.success) {
+      // Sort by createdAt in JavaScript
+      const sorted = result.data.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateA - dateB;
+      });
+      console.log('Messages loaded via API:', sorted.length);
+      setMessages(sorted);
+      scrollToBottom();
+    } else {
+      console.error('Failed to load messages via API:', result.error);
+    }
+  };
+
   // Real-time subscription for conversations
   const subscribeToConversations = () => {
     if (!user?.email) {
       setLoading(false);
       return () => {};
     }
-    const chatsQuery = query(collection(db, 'chats'));
-    return onSnapshot(chatsQuery, (snapshot) => {
-      const chats = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })).filter(chat => chat.participants && chat.participants.includes(user.email));
-      setConversations(chats);
+
+    // First try to load via API (always works)
+    loadConversations();
+
+    // Then try real-time subscription (may fail due to permissions)
+    try {
+      const chatsQuery = query(collection(db, 'chats'));
+      return onSnapshot(chatsQuery, (snapshot) => {
+        console.log('Conversations snapshot received, count:', snapshot.docs.length);
+        const chats = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })).filter(chat => chat.participants && chat.participants.includes(user.email));
+        console.log('Filtered conversations for user:', chats.length);
+        setConversations(chats);
+        setLoading(false);
+      }, (error) => {
+        console.error('Error in real-time chat:', error);
+        console.error('Error code:', error.code);
+        if (error.code === 'failed-precondition') {
+          console.error('Firestore index required! Create a composite index for chats collection.');
+        }
+        // Permission errors are handled gracefully - we already loaded via API
+        setLoading(false);
+      });
+    } catch (error) {
+      console.error('Error setting up chat subscription:', error);
       setLoading(false);
-    }, (error) => {
-      console.error('Error loading conversations:', error);
-      // Handle permission errors gracefully
-      if (error.code === 'permission-denied') {
-        setError('Chat access denied. Please check your permissions or contact admin.');
-      }
-      setLoading(false);
-    });
+      return () => {};
+    }
   };
 
   const scrollToBottom = () => {
@@ -108,6 +169,12 @@ const Chat = () => {
   };
 
   const startNewChat = async () => {
+    // Only admins can create admin chats (broadcast to all)
+    if (chatType === 'admin' && role !== 'Admin') {
+      alert('Only admins can initiate admin broadcasts.');
+      return;
+    }
+
     let participants = [user.email];
     let chatData = {
       type: chatType,
@@ -121,12 +188,12 @@ const Chat = () => {
       chatData.participants = participants;
       chatData.name = selectedMembers[0].name;
       chatData.otherUser = selectedMembers[0].email;
-    } else if (chatType === 'admin' && role !== 'Admin') {
-      // Find admin emails
-      const adminMembers = members.filter(m => m.role === 'Admin' || m.email === 'denismwg4@gmail.com');
-      participants = [...participants, ...adminMembers.map(m => m.email)];
+    } else if (chatType === 'admin' && role === 'Admin') {
+      // Admin broadcast - include all members
+      const allMemberEmails = members.map(m => m.email);
+      participants = [user.email, ...allMemberEmails];
       chatData.participants = participants;
-      chatData.name = 'Admin Support';
+      chatData.name = 'Admin Broadcast';
     } else if (chatType === 'group') {
       participants = [...participants, ...selectedMembers.map(m => m.email)];
       chatData.participants = participants;
@@ -164,11 +231,11 @@ const Chat = () => {
     const messageData = {
       chatId: selectedChat.id,
       sender: user.email,
-      senderName: anonymous ? 'Anonymous' : displayName,
+      senderName: anonymous ? 'Anonymous' : (displayName || user.email.split('@')[0]),
       content: newMessage.trim(),
       anonymous: anonymous,
-      createdAt: new Date().toISOString(),
       read: false
+      // Note: createdAt will be added by addDocument function
     };
 
     console.log('Sending message:', messageData);
@@ -179,18 +246,13 @@ const Chat = () => {
       setNewMessage('');
       setAnonymous(false);
       setSending(false);
+      // Force refresh messages after sending
+      setTimeout(() => loadMessages(selectedChat.id), 500);
     } else {
       console.error('Failed to send message:', result.error);
       setSending(false);
       alert('Failed to send message: ' + result.error);
     }
-
-    // Update chat last message
-    // await updateDocument('chats', selectedChat.id, {
-    //   lastMessage: messageData.content,
-    //   lastMessageTime: messageData.createdAt,
-    //   updatedAt: messageData.createdAt
-    // });
   };
 
   const toggleMemberSelection = (member) => {
@@ -510,16 +572,18 @@ const Chat = () => {
               >
                 <User size={16} className="inline mr-1" /> Individual
               </button>
-              <button
-                onClick={() => setChatType('admin')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
-                  chatType === 'admin' 
-                    ? 'bg-primary-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Shield size={16} className="inline mr-1" /> Admin
-              </button>
+              {role === 'Admin' && (
+                <button
+                  onClick={() => setChatType('admin')}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
+                    chatType === 'admin' 
+                      ? 'bg-primary-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Shield size={16} className="inline mr-1" /> Admin
+                </button>
+              )}
               <button
                 onClick={() => setChatType('group')}
                 className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${

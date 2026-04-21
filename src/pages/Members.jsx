@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Download, Phone, Mail } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Download, Phone, Mail, MessageSquare } from 'lucide-react';
 import { getCollection, addDocument, updateDocument, deleteDocument } from '../firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { jsPDF } from 'jspdf';
 
 const Members = () => {
   const { role, user } = useAuth();
   const canDownload = role === 'Admin' || role === 'Secretary';
   const isCurrentUser = (memberEmail) => user?.email?.toLowerCase() === memberEmail?.toLowerCase();
+  const isProtectedAdmin = (memberEmail) => {
+    const protectedEmails = ['denismwg4@gmail.com', 'bykiptoo@gmail.com'];
+    return protectedEmails.includes(memberEmail?.toLowerCase());
+  };
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -82,6 +85,10 @@ const Members = () => {
   };
 
   const handleEdit = (member) => {
+    if (isProtectedAdmin(member.email)) {
+      alert('System protected accounts cannot be edited.');
+      return;
+    }
     setEditingMember(member);
     setFormData(member);
     setCustomTagInput('');
@@ -89,6 +96,11 @@ const Members = () => {
   };
 
   const handleDelete = async (id) => {
+    const member = members.find(m => m.id === id);
+    if (isProtectedAdmin(member?.email)) {
+      alert('System protected accounts cannot be deleted.');
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this member?')) {
       await deleteDocument('members', id);
       loadMembers();
@@ -165,14 +177,6 @@ const Members = () => {
     doc.save('members-list.pdf');
   };
 
-  // Prepare chart data
-  const positionData = availablePositions.map(pos => ({
-    position: pos,
-    count: members.filter(m => m.position === pos).length
-  }));
-
-  const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -214,46 +218,6 @@ const Members = () => {
           </div>
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Members by Position</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={positionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="position" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0ea5e9" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Position Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={positionData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ position, count }) => `${position}: ${count}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {positionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
         {/* Members List */}
         <div className="card">
           <h2 className="text-xl font-bold text-gray-900 mb-4">All Members ({members.length})</h2>
@@ -279,9 +243,14 @@ const Members = () => {
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Position</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Contact</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Tags</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Permissions</th>
                     {role === 'Admin' && (
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                      <>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                          Permissions
+                          <span className="block text-xs font-normal text-gray-400 mt-0.5">managed by admins</span>
+                        </th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                      </>
                     )}
                   </tr>
                 </thead>
@@ -290,10 +259,13 @@ const Members = () => {
                     <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div className="font-medium text-gray-900">{member.name} {member.surname}</div>
-                        <div className="text-sm text-gray-500 flex items-center gap-1">
+                        <a 
+                          href={`mailto:${member.email}`}
+                          className="text-sm text-gray-500 flex items-center gap-1 hover:text-primary-600 transition-colors"
+                        >
                           <Mail size={14} />
                           {member.email}
-                        </div>
+                        </a>
                       </td>
                       <td className="py-3 px-4">
                         <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
@@ -301,9 +273,22 @@ const Members = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <Phone size={14} />
-                          {member.contact}
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <a 
+                            href={`tel:${member.contact}`}
+                            className="flex items-center gap-1 hover:text-primary-600 transition-colors"
+                            title="Call"
+                          >
+                            <Phone size={14} />
+                          </a>
+                          <a 
+                            href={`sms:${member.contact}`}
+                            className="flex items-center gap-1 hover:text-primary-600 transition-colors"
+                            title="Send SMS"
+                          >
+                            <MessageSquare size={14} />
+                          </a>
+                          <span className="text-sm">{member.contact}</span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -315,49 +300,53 @@ const Members = () => {
                           ))}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {member.permissions && Object.entries(member.permissions).map(([key, value]) => {
-                            if (value) {
-                              const label = permissionOptions.find(p => p.key === key)?.label || key;
-                              return (
-                                <span key={key} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                  {label.replace('Can ', '')}
-                                </span>
-                              );
-                            }
-                            return null;
-                          })}
-                          {(!member.permissions || !Object.values(member.permissions).some(v => v)) && (
-                            <span className="text-xs text-gray-400">None</span>
-                          )}
-                        </div>
-                      </td>
                       {role === 'Admin' && (
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            {!isCurrentUser(member.email) ? (
-                              <>
-                                <button
-                                  onClick={() => handleEdit(member)}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit size={18} />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(member.id)}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic">Protected</span>
-                            )}
-                          </div>
-                        </td>
+                        <>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1">
+                              {member.permissions && Object.entries(member.permissions).map(([key, value]) => {
+                                if (value) {
+                                  const label = permissionOptions.find(p => p.key === key)?.label || key;
+                                  return (
+                                    <span key={key} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                                      {label.replace('Can ', '')}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })}
+                              {(!member.permissions || !Object.values(member.permissions).some(v => v)) && (
+                                <span className="text-xs text-gray-400">None</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              {!isCurrentUser(member.email) && !isProtectedAdmin(member.email) ? (
+                                <>
+                                  <button
+                                    onClick={() => handleEdit(member)}
+                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(member.id)}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic">
+                                  {isProtectedAdmin(member.email) ? 'System Protected' : 'Protected'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </>
                       )}
                     </tr>
                   ))}
@@ -441,31 +430,33 @@ const Members = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Position <span className="text-gray-400">(Optional)</span>
-                  </label>
-                  <select
-                    value={formData.position}
-                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                    className="input-field"
-                  >
-                    <option value="">Select Position</option>
-                    {availablePositions.map(pos => (
-                      <option key={pos} value={pos}>{pos}</option>
-                    ))}
-                  </select>
-                  {formData.position === 'Custom' && (
-                    <input
-                      type="text"
-                      value={customPosition}
-                      onChange={(e) => setCustomPosition(e.target.value)}
-                      className="input-field mt-2"
-                      placeholder="e.g., Head of Marketing, Department Head"
-                      required
-                    />
-                  )}
-                </div>
+                {role === 'Admin' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Position <span className="text-gray-400">(Admin Only)</span>
+                    </label>
+                    <select
+                      value={formData.position}
+                      onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                      className="input-field"
+                    >
+                      <option value="">Select Position</option>
+                      {availablePositions.map(pos => (
+                        <option key={pos} value={pos}>{pos}</option>
+                      ))}
+                    </select>
+                    {formData.position === 'Custom' && (
+                      <input
+                        type="text"
+                        value={customPosition}
+                        onChange={(e) => setCustomPosition(e.target.value)}
+                        className="input-field mt-2"
+                        placeholder="e.g., Head of Marketing, Department Head"
+                        required
+                      />
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
@@ -528,22 +519,26 @@ const Members = () => {
                   <p className="text-xs text-gray-400 mt-1">Press Enter or click Add to add custom tag</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
-                  <div className="space-y-2">
-                    {permissionOptions.map(option => (
-                      <label key={option.key} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.permissions[option.key] || false}
-                          onChange={() => togglePermission(option.key)}
-                          className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                        />
-                        <span className="text-sm text-gray-700">{option.label}</span>
-                      </label>
-                    ))}
+                {role === 'Admin' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Permissions <span className="text-gray-400">(Admin Only)</span>
+                    </label>
+                    <div className="space-y-2">
+                      {permissionOptions.map(option => (
+                        <label key={option.key} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions[option.key] || false}
+                            onChange={() => togglePermission(option.key)}
+                            className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                          />
+                          <span className="text-sm text-gray-700">{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex gap-3 pt-4">
                   <button
