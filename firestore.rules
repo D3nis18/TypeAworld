@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'denismwg4@gmail.com' ||
+        request.auth.token.email == 'bykiptoo@gmail.com'
+      );
+    }
+
+    // Allow anyone to read allowedEmails for login validation
+    match /allowedEmails/{email} {
+      allow read: if true;
+    }
+
+    // Allow users to read/write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read members
+    match /members/{member} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Allow all authenticated users to read treasurer reports
+    match /treasurerReports/{report} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Allow all authenticated users to read minutes
+    match /minutes/{minute} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Allow users to read/write chats (participants filter in app)
+    match /chats/{chat} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // Allow users to read/write messages
+    match /messages/{message} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // Allow authenticated users to read company info
+    match /companyHistory/{doc} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /companyObjects/{doc} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /acts/{act} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /departments/{dept} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /departmentPosts/{post} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /attendance/{record} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /apologies/{apology} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /meetingReminder/{reminder} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+  }
+}
